@@ -1,0 +1,192 @@
+/* SafeSecrets Global Styles */
+
+:root {
+  /* Valentine's Day Color Palette */
+  --ss-bg: #FFF0F5;
+  --ss-panel-bg: #FFFAF5;
+  --ss-accent: #DC143C;
+  --ss-accent-dark: #8B0000;
+  --ss-text: #3A2A1A;
+  --ss-text-muted: #8B6F50;
+  --ss-border: #F0E0D0;
+  
+  /* Typography */
+  --ss-font-display: 'Playfair Display', Georgia, serif;
+  --ss-font-body: 'Inter', system-ui, sans-serif;
+  
+  /* Layout */
+  --ss-radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--ss-font-body);
+  color: var(--ss-text);
+  background: linear-gradient(135deg, var(--ss-bg) 0%, #FFE4E9 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+#root {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Main App Container */
+.app {
+  display: flex;
+  gap: 2rem;
+  width: 100%;
+  min-height: 600px;
+}
+
+/* Left Panel - Avatar */
+.app__left-panel {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--ss-panel-bg);
+  border-radius: var(--ss-radius);
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(139, 0, 0, 0.1);
+  position: relative;
+}
+
+/* Right Panel - Artifact */
+.app__right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--ss-panel-bg);
+  border-radius: var(--ss-radius);
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(139, 0, 0, 0.1);
+  overflow-y: auto;
+  max-height: 80vh;
+}
+
+/* Start Conversation Button */
+.app__start-button {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1rem 2.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-family: var(--ss-font-display);
+  color: white;
+  background: linear-gradient(135deg, var(--ss-accent) 0%, var(--ss-accent-dark) 100%);
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(220, 20, 60, 0.3);
+  transition: all 0.3s ease;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.app__start-button:hover {
+  transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 6px 25px rgba(220, 20, 60, 0.5);
+}
+
+.app__start-button:active {
+  transform: translateX(-50%) scale(0.98);
+}
+
+.app__start-button:focus-visible {
+  outline: 3px solid var(--ss-accent);
+  outline-offset: 4px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(220, 20, 60, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(220, 20, 60, 0.6);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .app__left-panel,
+  .app__right-panel {
+    flex: 1;
+    min-height: 400px;
+  }
+
+  .app__start-button {
+    position: static;
+    transform: none;
+    margin-top: 1.5rem;
+  }
+
+  .app__start-button:hover {
+    transform: scale(1.05);
+  }
+
+  .app__start-button:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Accessibility */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--ss-accent);
+  color: white;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  border-radius: 0 0 var(--ss-radius) 0;
+  z-index: 100;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ss-bg: #1A0A0F;
+    --ss-panel-bg: #2A1A1F;
+    --ss-accent: #FF6B8A;
+    --ss-accent-dark: #DC143C;
+    --ss-text: #F5E6EA;
+    --ss-text-muted: #C4A4AA;
+    --ss-border: #4A3A3F;
+  }
+
+  body {
+    background: linear-gradient(135deg, var(--ss-bg) 0%, #2A1520 100%);
+  }
+}

@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import type { AvatarState, SpeakingStyle } from '../../../shared/types.js';
+import styles from './HeartAvatar.module.css';
 
 export interface HeartAvatarProps {
   avatarState: AvatarState;
@@ -46,7 +47,8 @@ export function HeartAvatar({ avatarState, speakingStyle }: HeartAvatarProps) {
 
   return (
     <div
-      className={`heart-avatar heart-avatar--${avatarState}`}
+      className={`${styles.avatar} heart-avatar heart-avatar--${avatarState}`}
+      data-style={speakingStyle}
       role="img"
       aria-label={`Heart avatar — ${avatarState}`}
     >
