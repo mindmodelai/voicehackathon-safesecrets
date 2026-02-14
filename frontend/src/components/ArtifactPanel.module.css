@@ -35,15 +35,15 @@
   margin: 0;
 }
 
-/* Bottom 2/3: sovereignty mode buttons sitting on the angled notepad.
-   We use a perspective container + rotateX to tilt the surface away,
-   and skew to make the right edge shorter than the left — trapezoid. */
+/* Bottom 2/3: sovereignty mode buttons with perspective trapezoid.
+   perspective on wrapper + rotateY on child = true trapezoid
+   where left edge is taller than right edge. */
 .optionsWrapper {
   flex: 2;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(220, 20, 60, 0.5);
   border-top: none;
-  perspective: 400px;
-  perspective-origin: center top;
+  perspective: 300px;
+  perspective-origin: right center;
   overflow: visible;
 }
 
@@ -53,12 +53,12 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 16px 20px;
+  padding: 16px 20px 16px 40px;
   height: 100%;
-  /* Tilt the surface back and skew so right edge is shorter */
-  transform: rotateX(8deg) rotateY(3deg) skewY(-1.5deg);
-  transform-origin: right top;
+  transform: rotateY(8deg);
+  transform-origin: center center;
   transform-style: preserve-3d;
+  border: 2px dashed rgba(0, 0, 0, 0.4);
 }
 
 .modeButton {
