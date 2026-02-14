@@ -9,4 +9,13 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, '../shared'),
     },
   },
+  server: {
+    port: 5173,
+    proxy: {
+      '/ws': {
+        target: 'ws://localhost:8080',
+        ws: true,
+      },
+    },
+  },
 });
