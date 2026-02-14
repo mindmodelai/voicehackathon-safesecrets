@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { HeartAvatar } from './components/HeartAvatar';
 import { ArtifactPanel } from './components/ArtifactPanel';
+import { VideoFrame } from './components/VideoFrame';
+import { Header } from './components/Header';
 import { createAvatarStateMachine } from './avatar-state-machine';
 import { createWSClient } from './ws-client';
 import { createAudioManager } from './audio-manager';
@@ -173,7 +175,9 @@ export function App() {
   const showEndButton = isConnected && avatarState !== 'idle';
 
   return (
-    <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+    <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
+      <Header />
+
       {/* Sovereignty mode selector */}
       <div data-testid="sovereignty-selector" style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
         {(Object.entries(SOVEREIGNTY_MODES) as [SovereigntyMode, typeof SOVEREIGNTY_MODES[SovereigntyMode]][]).map(([mode, config]) => (
@@ -197,9 +201,9 @@ export function App() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '20px' }}>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
       {/* Left column: Avatar + conversation transcript */}
-      <div className="app__left-panel" data-testid="left-panel" style={{ flex: '0 0 28%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+      <div className="app__left-panel" data-testid="left-panel" style={{ flex: '0 0 22%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
         <HeartAvatar avatarState={avatarState} speakingStyle={speakingStyle} />
 
         {showStartButton && (
@@ -251,8 +255,9 @@ export function App() {
         )}
       </div>
 
-      {/* Center column: LLM spoken response */}
+      {/* Center column: Video frame + LLM spoken response */}
       <div className="app__center-panel" data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <VideoFrame />
         <div style={{ fontSize: '0.8rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           💬 Spoken Response {conversationStage && `(${conversationStage})`}
         </div>
@@ -272,8 +277,8 @@ export function App() {
         </div>
       </div>
 
-      {/* Right column: Artifact panel (love note draft) */}
-      <div className="app__right-panel" data-testid="right-panel" style={{ flex: '0 0 32%' }}>
+      {/* Right column: Artifact panel (love note draft) — 9:16 portrait */}
+      <div className="app__right-panel" data-testid="right-panel" style={{ flex: '0 0 24%', aspectRatio: '9 / 16', position: 'relative', overflow: 'hidden', borderRadius: '16px' }}>
         <ArtifactPanel
           noteDraft={noteDraft}
           tags={tags}
