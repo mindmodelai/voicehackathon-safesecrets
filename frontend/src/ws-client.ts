@@ -102,6 +102,7 @@ export class WSClientImpl implements WSClient {
   private handleMessage(event: MessageEvent): void {
     // Binary messages are audio chunks from TTS
     if (event.data instanceof ArrayBuffer) {
+      console.log(`[WSClient] Binary frame received: ${event.data.byteLength} bytes`);
       this.handlers.onAudioChunk?.(event.data);
       return;
     }
@@ -115,6 +116,7 @@ export class WSClientImpl implements WSClient {
       return;
     }
 
+    console.log(`[WSClient] Event received: ${message.type === 'event' ? message.event : message.type}`);
     this.dispatchServerMessage(message);
   }
 

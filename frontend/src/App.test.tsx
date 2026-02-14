@@ -55,9 +55,10 @@ afterEach(() => {
 });
 
 describe('App layout', () => {
-  it('renders two-panel layout', () => {
+  it('renders three-panel layout', () => {
     render(<App />);
     expect(screen.getByTestId('left-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('center-panel')).toBeInTheDocument();
     expect(screen.getByTestId('right-panel')).toBeInTheDocument();
   });
 
