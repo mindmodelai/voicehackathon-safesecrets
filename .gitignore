@@ -40,3 +40,6 @@ Thumbs.db
 
 # Raw assets (large files, not for repo)
 sam-raw/
+
+# Internal working files
+sam-internal/
