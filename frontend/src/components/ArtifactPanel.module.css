@@ -1,35 +1,58 @@
+/* Artifact Panel Component Styles */
+
 .panel {
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 24px;
-  background: #fffaf5;
-  border: 1px solid #f0e0d0;
-  border-radius: 12px;
-  font-family: 'Georgia', serif;
+  background: var(--ss-panel-bg, #fffaf5);
+  border: 1px solid var(--ss-border, #f0e0d0);
+  border-radius: var(--ss-radius, 12px);
+  font-family: var(--ss-font-body, 'Georgia', serif);
   min-height: 300px;
   max-width: 480px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+/* Note Area - Notepad Style */
 .noteArea {
   flex: 1;
   white-space: pre-wrap;
   line-height: 1.7;
   font-size: 1.05rem;
-  color: #3a2a1a;
+  color: var(--ss-text, #3a2a1a);
   padding: 16px;
-  background: #fff;
+  background: 
+    linear-gradient(transparent 1.6rem, #e8ddd0 1.6rem),
+    #fff;
+  background-size: 100% 1.7rem;
   border-radius: 8px;
-  border: 1px solid #ece0d4;
+  border: 1px solid var(--ss-border, #ece0d4);
   min-height: 120px;
+  max-height: 400px;
+  overflow-y: auto;
+  transform: rotate(-0.5deg);
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.08);
+  animation: fadeInSlideUp 0.5s ease-out;
+}
+
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) rotate(-0.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-0.5deg);
+  }
 }
 
 .placeholder {
-  color: #b8a898;
+  color: var(--ss-text-muted, #b8a898);
   font-style: italic;
 }
 
+/* Tone Labels */
 .toneLabel {
   display: inline-block;
   padding: 4px 12px;
@@ -55,6 +78,7 @@
   color: #283593;
 }
 
+/* Tags with Heart Icons */
 .tags {
   display: flex;
   flex-wrap: wrap;
@@ -68,43 +92,168 @@
   border: 1px solid #f0d8c0;
   border-radius: 12px;
   font-size: 0.78rem;
-  color: #8b6f50;
+  color: var(--ss-text-muted, #8b6f50);
 }
 
+.tag::before {
+  content: '❤ ';
+  color: var(--ss-accent, #DC143C);
+  font-size: 0.7rem;
+}
+
+/* Action Buttons */
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px solid #f0e0d0;
+  border-top: 1px solid var(--ss-border, #f0e0d0);
 }
 
+/* Copy Button with Checkmark Animation */
 .copyButton {
   padding: 6px 16px;
-  background: #d32f2f;
+  background: var(--ss-accent, #d32f2f);
   color: #fff;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
-.copyButton:hover {
-  background: #b71c1c;
+.copyButton:hover:not(:disabled) {
+  background: var(--ss-accent-dark, #b71c1c);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 20, 60, 0.3);
 }
 
+.copyButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.copyButton:active:not(:disabled)::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(2);
+  opacity: 0;
+  animation: checkmark 0.4s ease-out;
+}
+
+@keyframes checkmark {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+}
+
+.copyButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+}
+
+.copyButton:focus-visible {
+  outline: 3px solid var(--ss-accent, #DC143C);
+  outline-offset: 2px;
+}
+
+/* Refinement Buttons with Icons */
 .refinementButton {
   padding: 6px 14px;
   background: #fff;
-  color: #5d4037;
-  border: 1px solid #d7c4b0;
+  color: var(--ss-text, #5d4037);
+  border: 1px solid var(--ss-border, #d7c4b0);
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.82rem;
+  transition: all 0.2s ease;
 }
 
-.refinementButton:hover {
+.refinementButton:hover:not(:disabled) {
   background: #fdf0e6;
   border-color: #c4a882;
+  transform: translateY(-1px);
+}
+
+.refinementButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.refinementButton:focus-visible {
+  outline: 2px solid var(--ss-accent, #DC143C);
+  outline-offset: 2px;
+}
+
+/* Add emoji icons before button text */
+.refinementButton:nth-child(2)::before {
+  content: '✂️ ';
+}
+
+.refinementButton:nth-child(3)::before {
+  content: '💪 ';
+}
+
+.refinementButton:nth-child(4)::before {
+  content: '💕 ';
+}
+
+.refinementButton:nth-child(5)::before {
+  content: '🇫🇷 ';
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .panel {
+    max-width: 100%;
+  }
+
+  .noteArea {
+    font-size: 1rem;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .noteArea {
+    animation: none;
+    transform: rotate(0deg);
+  }
+
+  .copyButton:active:not(:disabled)::after {
+    animation: none;
+  }
+
+  .copyButton:hover:not(:disabled),
+  .refinementButton:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .noteArea {
+    background: 
+      linear-gradient(transparent 1.6rem, #3a2a2f 1.6rem),
+      #2a1a1f;
+    color: var(--ss-text, #F5E6EA);
+  }
+
+  .refinementButton {
+    background: #3a2a2f;
+    color: var(--ss-text, #F5E6EA);
+  }
+
+  .refinementButton:hover:not(:disabled) {
+    background: #4a3a3f;
+  }
 }
