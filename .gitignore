@@ -24,6 +24,11 @@ dist/
 build/
 *.log
 
+# Shared compiled output
+shared/*.js
+shared/*.js.map
+shared/*.d.ts
+
 # IDE
 .vscode/
 .idea/
