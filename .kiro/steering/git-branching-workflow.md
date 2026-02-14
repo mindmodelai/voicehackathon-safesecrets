@@ -31,27 +31,42 @@ When executing tasks from `.kiro/specs/safesecrets/tasks.md`, follow this git wo
 
 ## After Completing a Task
 
-1. Commit all remaining changes on the feature branch and push:
+1. Commit all remaining changes on the feature branch and push to remote:
    ```
    git add -A
    git commit -m "Task N: <task title>"
    git push origin <branch-name>
    ```
 
-2. Switch to main, merge the feature branch (no fast-forward to preserve the merge commit for history), and push:
+2. Create a Pull Request on GitHub using the `gh` CLI:
+   ```
+   gh pr create --base main --head <branch-name> --title "Task N: <task title>" --body "Implements Task N from the SafeSecrets spec."
+   ```
+
+3. Merge the PR using the `gh` CLI (merge commit strategy to preserve history, keep the branch):
+   ```
+   gh pr merge <branch-name> --merge
+   ```
+
+4. Pull the merged main locally:
    ```
    git checkout main
-   git merge --no-ff <branch-name> -m "Merge task/N-<name>: <task title>"
-   git push origin main
+   git pull origin main
    ```
 
-3. Delete the feature branch locally and remotely:
+5. Tag the merge with a descriptive tag for traceability:
    ```
-   git branch -d <branch-name>
-   git push origin --delete <branch-name>
+   git tag -a <tag-name> -m "<tag message>"
+   git push origin <tag-name>
    ```
 
-This creates a merge commit on main for each task, giving you clear versioning history in `git log --oneline --graph`.
+   Tag naming convention:
+   - Task completions: `task/N-<short-name>` (e.g., `task/1-scaffolding`, `task/2-avatar-state-machine`)
+   - Checkpoints: `checkpoint/N` (e.g., `checkpoint/3`, `checkpoint/6`)
+   - Housekeeping: `housekeeping/<description>` (e.g., `housekeeping/rename-and-steering`)
+   - Milestones: `milestone/<name>` (e.g., `milestone/backend-complete`, `milestone/mvp`)
+
+This creates a real PR on GitHub for each task, with the branch visible on remote, a merge commit on main, and tags for easy navigation via `git tag -l`.
 
 ## Important Rules
 
