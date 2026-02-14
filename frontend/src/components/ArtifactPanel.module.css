@@ -8,7 +8,7 @@
   background: var(--ss-panel-bg, #fffaf5);
   border: 1px solid var(--ss-border, #f0e0d0);
   border-radius: var(--ss-radius, 12px);
-  font-family: var(--ss-font-body, 'Georgia', serif);
+  font-family: var(--ss-font-handwriting, 'Handlee', cursive);
   min-height: 300px;
   max-width: 480px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
