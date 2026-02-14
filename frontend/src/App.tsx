@@ -68,7 +68,9 @@ export function App() {
         setStatusText('🎙️ Listening — speak now');
         const state = sm.transition({ type: 'TTS_END' });
         setAvatarState(state);
-        audio.stopPlayback();
+        // Do NOT call stopPlayback here — audio chunks are still queued in the
+        // Web Audio scheduler and need to finish playing. stopPlayback is only
+        // for barge-in (user starts speaking while TTS is playing).
       },
       onAudioChunk: (chunk) => {
         audio.playAudioChunk(chunk);
@@ -92,10 +94,10 @@ export function App() {
         setStatusText('🤔 Thinking...');
       },
       onAssistantResponse: (text, stage) => {
+        console.log(`[App] onAssistantResponse: stage=${stage}, text="${text}"`);
         setAssistantResponse(text);
         setConversationStage(stage);
-        // Only add to transcript log as a short note, not the full text (full text shown in center column)
-        setTranscriptLog((prev) => [...prev, `🤖 [${stage}] responded`]);
+        setTranscriptLog((prev) => [...prev, `🤖 ${text}`]);
       },
       onError: (msg) => {
         console.error('[SafeSecrets]', msg);
