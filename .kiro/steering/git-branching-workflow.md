@@ -47,6 +47,8 @@ When executing tasks from `.kiro/specs/safesecrets/tasks.md`, follow this git wo
    ```
    gh pr merge <branch-name> --merge
    ```
+   
+   **IMPORTANT:** Do NOT use `--delete-branch` flag. Branches must be preserved for changelog and history tracking.
 
 4. Pull the merged main locally:
    ```
