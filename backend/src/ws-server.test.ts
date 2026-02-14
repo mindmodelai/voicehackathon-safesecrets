@@ -220,7 +220,8 @@ describe('SafeSecretsWSServer', () => {
         (m: any) => m.type === 'event' && m.event === 'error',
       ) as any;
       expect(errorMsg).toBeDefined();
-      expect(errorMsg.data.message).toContain('Unknown control action');
+      // Strict validation now rejects unknown actions as invalid format
+      expect(errorMsg.data.message).toBe('Invalid message format');
     });
   });
 
