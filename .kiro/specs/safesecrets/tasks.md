@@ -194,14 +194,14 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - _Requirements: 9.1, 9.2, 9.4, 9.5_
 
 - [ ] 10. Integration and wiring
-  - [-] 10.1 Wire the full voice pipeline end-to-end
+  - [x] 10.1 Wire the full voice pipeline end-to-end
     - Connect: Mic → WebSocket → Transcribe → Mastra Workflow → Bedrock → Polly → Audio playback
     - Ensure avatar state transitions fire correctly through the full flow
     - Ensure artifact panel updates on compose and refine stages
     - Implement barge-in: user speaking stops TTS and transitions avatar to listening
     - _Requirements: 1.3, 2.1, 3.4, 4.1, 4.5, 5.5, 9.2, 9.4, 9.5_
 
-  - [~] 10.2 Implement error handling and region enforcement
+  - [x] 10.2 Implement error handling and region enforcement
     - Verify all AWS clients are pinned to ca-central-1 with no fallback
     - Implement graceful error messages for service failures
     - Implement connection timeout cleanup (5 min idle)
