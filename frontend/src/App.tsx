@@ -4,7 +4,8 @@ import { ArtifactPanel } from './components/ArtifactPanel';
 import { createAvatarStateMachine } from './avatar-state-machine';
 import { createWSClient } from './ws-client';
 import { createAudioManager } from './audio-manager';
-import type { AvatarState, SpeakingStyle, RefinementRequest } from '../../shared/types.js';
+import type { AvatarState, SpeakingStyle, RefinementRequest, SovereigntyMode } from '../../shared/types.js';
+import { SOVEREIGNTY_MODES } from '../../shared/types.js';
 import './App.css';
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws';
@@ -22,24 +23,43 @@ export function App() {
   const [errorText, setErrorText] = useState('');
   const [assistantResponse, setAssistantResponse] = useState('');
   const [conversationStage, setConversationStage] = useState('collect');
+  const [sovereigntyMode, setSovereigntyMode] = useState<SovereigntyMode>('full_canada');
 
   const stateMachineRef = useRef(createAvatarStateMachine());
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
   const audioManagerRef = useRef(createAudioManager());
+  const sovereigntyModeRef = useRef<SovereigntyMode>(sovereigntyMode);
 
   const handleStartConversation = useCallback(() => {
-    if (wsClientRef.current?.isConnected()) return;
-
     setStatusText('Connecting...');
     setErrorText('');
 
     const sm = stateMachineRef.current;
     const audio = audioManagerRef.current;
 
+    // If we already have an open WebSocket, just start a new conversation on it
+    if (wsClientRef.current?.isConnected()) {
+      wsClientRef.current.sendControl('start_conversation');
+      audio.startCapture((chunk) => {
+        wsClientRef.current?.sendAudio(chunk, 16000);
+      }).then(() => {
+        setAvatarState('idle');
+        setStatusText('🎙️ Listening — speak now');
+      }).catch((err) => {
+        setErrorText(`Mic error: ${err.message}`);
+        setStatusText('');
+      });
+      return;
+    }
+
     const client = createWSClient({
       onSessionReady: () => {
         setIsConnected(true);
         setStatusText('Starting conversation...');
+        // Send the selected sovereignty mode before starting the conversation
+        if (sovereigntyModeRef.current !== 'full_canada') {
+          client.sendMode(sovereigntyModeRef.current);
+        }
         client.sendControl('start_conversation');
         audio.startCapture((chunk) => {
           client.sendAudio(chunk, 16000);
@@ -94,10 +114,21 @@ export function App() {
         setStatusText('🤔 Thinking...');
       },
       onAssistantResponse: (text, stage) => {
-        console.log(`[App] onAssistantResponse: stage=${stage}, text="${text}"`);
         setAssistantResponse(text);
         setConversationStage(stage);
         setTranscriptLog((prev) => [...prev, `🤖 ${text}`]);
+      },
+      onModeChanged: (mode) => {
+        setSovereigntyMode(mode);
+        sovereigntyModeRef.current = mode;
+      },
+      onConversationEnded: () => {
+        setAvatarState('idle');
+        setStatusText('Conversation ended. Press Start to begin a new one.');
+        setPartialTranscript('');
+        setConversationStage('collect');
+        audio.stopCapture();
+        audio.stopPlayback();
       },
       onError: (msg) => {
         console.error('[SafeSecrets]', msg);
@@ -120,10 +151,53 @@ export function App() {
     }
   }, [noteDraft]);
 
-  const showStartButton = avatarState === 'idle' && !isConnected;
+  const handleModeChange = useCallback((mode: SovereigntyMode) => {
+    setSovereigntyMode(mode);
+    sovereigntyModeRef.current = mode;
+    wsClientRef.current?.sendMode(mode);
+  }, []);
+
+  const handleEndConversation = useCallback(() => {
+    wsClientRef.current?.sendControl('end_conversation');
+    // Don't disconnect the WebSocket — keep the session alive so the user
+    // can switch modes and start a new conversation without reconnecting.
+    audioManagerRef.current.stopCapture();
+    audioManagerRef.current.stopPlayback();
+    setAvatarState('idle');
+    setStatusText('Conversation ended. Press Start to begin a new one.');
+    setPartialTranscript('');
+    setConversationStage('collect');
+  }, []);
+
+  const showStartButton = !isConnected || avatarState === 'idle';
+  const showEndButton = isConnected && avatarState !== 'idle';
 
   return (
-    <div className="app" data-testid="app-layout" style={{ display: 'flex', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+    <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+      {/* Sovereignty mode selector */}
+      <div data-testid="sovereignty-selector" style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        {(Object.entries(SOVEREIGNTY_MODES) as [SovereigntyMode, typeof SOVEREIGNTY_MODES[SovereigntyMode]][]).map(([mode, config]) => (
+          <button
+            key={mode}
+            onClick={() => handleModeChange(mode)}
+            title={config.description}
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.85rem',
+              border: sovereigntyMode === mode ? '2px solid #DC143C' : '1px solid #ccc',
+              borderRadius: '20px',
+              background: sovereigntyMode === mode ? '#fce4ec' : '#fff',
+              color: '#333',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            {config.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: '20px' }}>
       {/* Left column: Avatar + conversation transcript */}
       <div className="app__left-panel" data-testid="left-panel" style={{ flex: '0 0 28%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
         <HeartAvatar avatarState={avatarState} speakingStyle={speakingStyle} />
@@ -136,6 +210,17 @@ export function App() {
             style={{ padding: '12px 32px', fontSize: '1.1rem', background: '#DC143C', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer' }}
           >
             Start Conversation
+          </button>
+        )}
+
+        {showEndButton && (
+          <button
+            className="app__end-button"
+            onClick={handleEndConversation}
+            data-testid="end-conversation-button"
+            style={{ padding: '12px 32px', fontSize: '1.1rem', background: '#666', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer' }}
+          >
+            End Conversation
           </button>
         )}
 
@@ -196,6 +281,7 @@ export function App() {
           onRefinement={handleRefinement}
           onCopy={handleCopy}
         />
+      </div>
       </div>
     </div>
   );
