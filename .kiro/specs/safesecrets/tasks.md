@@ -20,7 +20,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Create `shared/schema.ts` with the JSON schema for StructuredOutput validation
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-  - [ ]* 1.3 Write property test for StructuredOutput validation
+  - [x]* 1.3 Write property test for StructuredOutput validation
     - **Property 5: Structured output validation**
     - Generate random JSON objects (valid and invalid), verify the validator accepts valid StructuredOutput and rejects invalid ones
     - **Validates: Requirements 3.3, 7.2, 7.3, 7.4, 7.5, 7.6**
@@ -72,7 +72,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Support immediate cancellation for barge-in
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 8.1_
 
-  - [ ]* 4.4 Write unit tests for AWS adapters
+  - [x]* 4.4 Write unit tests for AWS adapters
     - Test region configuration is ca-central-1 for all three adapters
     - Test Bedrock adapter retry logic with mocked invalid responses
     - Test Polly adapter stop/cancellation
@@ -99,22 +99,22 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Handle refinement requests: update only noteDraft while preserving context
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 9.3_
 
-  - [ ]* 5.3 Write property test for initial session stage
+  - [x]* 5.3 Write property test for initial session stage
     - **Property 3: New sessions start in collect stage**
     - Generate random session IDs, verify initial stage is "collect" and context fields are null
     - **Validates: Requirements 3.1**
 
-  - [ ]* 5.4 Write property test for compose transition
+  - [x]* 5.4 Write property test for compose transition
     - **Property 4: Complete context triggers compose transition**
     - Generate random complete ConversationContext objects, verify transition to "compose"
     - **Validates: Requirements 3.2**
 
-  - [ ]* 5.5 Write property test for structured output event routing
+  - [x]* 5.5 Write property test for structured output event routing
     - **Property 6: Structured output routes to correct events**
     - Generate random valid StructuredOutputs, verify correct events are emitted
     - **Validates: Requirements 3.4**
 
-  - [ ]* 5.6 Write property test for refinement context preservation
+  - [x]* 5.6 Write property test for refinement context preservation
     - **Property 7: Refinement preserves non-draft context**
     - Generate random contexts and refinement requests, verify non-draft fields unchanged
     - **Validates: Requirements 3.5**
@@ -133,12 +133,12 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Implement resource cleanup on disconnect (graceful and unexpected)
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - [ ]* 7.2 Write property test for event forwarding
+  - [x]* 7.2 Write property test for event forwarding
     - **Property 10: Backend events forwarded to client**
     - Generate random ServerEvents, verify they are forwarded with data intact
     - **Validates: Requirements 1.3**
 
-  - [ ]* 7.3 Write unit tests for WebSocket Server
+  - [x]* 7.3 Write unit tests for WebSocket Server
     - Test session creation on start_conversation
     - Test resource cleanup on unexpected disconnect
     - Test graceful close cleanup
@@ -207,7 +207,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Implement connection timeout cleanup (5 min idle)
     - _Requirements: 2.5, 3.6, 8.1, 8.4_
 
-  - [ ]* 10.3 Write integration tests for conversation flow
+  - [x]* 10.3 Write integration tests for conversation flow
     - Test full flow: start → collect → compose → refine → end with mocked AWS services
     - Test barge-in during TTS
     - Test error recovery paths
