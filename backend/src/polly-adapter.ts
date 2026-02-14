@@ -4,21 +4,40 @@ import {
 } from '@aws-sdk/client-polly';
 import type { Readable } from 'node:stream';
 
-const REGION = 'ca-central-1';
+const DEFAULT_REGION = 'ca-central-1';
 const DEFAULT_VOICE_ID = 'Joanna';
 const DEFAULT_ENGINE = 'neural';
 const DEFAULT_OUTPUT_FORMAT = 'pcm';
 const DEFAULT_SAMPLE_RATE = '16000';
 const CHUNK_SIZE = 4096;
 
+export interface PollyAdapterOptions {
+  region?: string;
+  voiceId?: string;
+  engine?: 'neural' | 'generative';
+}
+
 export class PollyAdapter {
   private client: PollyClient;
   private voiceId: string;
+  private engine: string;
+  private region: string;
   private abortController: AbortController | null = null;
 
-  constructor(client?: PollyClient, voiceId?: string) {
-    this.client = client ?? new PollyClient({ region: REGION });
-    this.voiceId = voiceId ?? DEFAULT_VOICE_ID;
+  constructor(clientOrOptions?: PollyClient | PollyAdapterOptions, voiceId?: string) {
+    if (clientOrOptions instanceof PollyClient) {
+      // Legacy constructor: (client, voiceId)
+      this.client = clientOrOptions;
+      this.voiceId = voiceId ?? DEFAULT_VOICE_ID;
+      this.engine = DEFAULT_ENGINE;
+      this.region = DEFAULT_REGION;
+    } else {
+      const opts = clientOrOptions ?? {};
+      this.region = opts.region ?? DEFAULT_REGION;
+      this.voiceId = opts.voiceId ?? DEFAULT_VOICE_ID;
+      this.engine = opts.engine ?? DEFAULT_ENGINE;
+      this.client = new PollyClient({ region: this.region });
+    }
   }
 
   /**
@@ -34,13 +53,15 @@ export class PollyAdapter {
     this.abortController = abortController;
 
     const command = new SynthesizeSpeechCommand({
-      Engine: DEFAULT_ENGINE,
+      Engine: this.engine,
       OutputFormat: DEFAULT_OUTPUT_FORMAT,
       SampleRate: DEFAULT_SAMPLE_RATE,
       Text: text,
       TextType: 'text',
       VoiceId: this.voiceId,
     });
+
+    console.log(`[Polly] Synthesizing — engine: ${this.engine}, voice: ${this.voiceId}, region: ${this.region}, text length: ${text.length}`);
 
     let response;
     try {
@@ -113,7 +134,7 @@ export class PollyAdapter {
    * Returns the AWS region this adapter is pinned to.
    */
   getRegion(): string {
-    return REGION;
+    return this.region;
   }
 
   /**
@@ -121,6 +142,10 @@ export class PollyAdapter {
    */
   getVoiceId(): string {
     return this.voiceId;
+  }
+
+  getEngine(): string {
+    return this.engine;
   }
 }
 

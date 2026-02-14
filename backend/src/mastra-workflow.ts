@@ -10,27 +10,11 @@ import type {
   WorkflowStage,
 } from '../../shared/types.js';
 import type { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
+import { SYSTEM_INSTRUCTIONS } from './system-instructions.js';
+import { buildCollectPrompt, buildComposePrompt, buildRefinePrompt } from './prompt-builders.js';
+import { DEFAULT_REGION } from './workflow-constants.js';
 
-// ── Constants ──
-
-const REGION = 'ca-central-1';
-
-const SYSTEM_INSTRUCTIONS = `You are a warm, creative Valentine's Day assistant called SafeSecrets.
-You help users compose personalized love notes and poems through natural conversation.
-
-You operate in three stages:
-1. COLLECT: Gather information about the recipient, the situation, desired tone, and desired outcome.
-   Ask friendly clarifying questions one at a time. Be warm and encouraging.
-2. COMPOSE: Once you have all four pieces of context, compose a beautiful love note.
-3. REFINE: When asked to refine, update only the note draft while keeping the same context.
-
-Always respond with valid JSON matching this schema:
-{
-  "style": "soft" | "flirty" | "serious",
-  "spokenResponse": "<conversational text for voice synthesis>",
-  "noteDraft": "<the love note text, or empty string if still collecting>",
-  "tags": ["<descriptive tags>"]
-}`;
+const REGION = DEFAULT_REGION;
 
 // ── Event callback types ──
 
@@ -74,77 +58,6 @@ const structuredOutputZod = z.object({
   desiredOutcome: z.string().nullable().optional(),
 });
 
-// ── Prompt builders ──
-
-function buildCollectPrompt(transcript: string, ctx: ConversationContext): string {
-  const missing: string[] = [];
-  if (!ctx.recipient) missing.push('who the message is for');
-  if (!ctx.situation) missing.push('what happened or the context/situation');
-  if (!ctx.desiredTone) missing.push('the desired tone (soft, flirty, or serious)');
-  if (!ctx.desiredOutcome) missing.push('the desired outcome or feeling');
-
-  const historyBlock = ctx.conversationHistory
-    .map((m) => `${m.role}: ${m.content}`)
-    .join('\n');
-
-  return [
-    'Stage: COLLECT',
-    `Still need: ${missing.length > 0 ? missing.join(', ') : 'nothing — ready to compose'}`,
-    '',
-    historyBlock ? `Conversation so far:\n${historyBlock}` : '',
-    '',
-    `User just said: "${transcript}"`,
-    '',
-    'Analyze what the user said. Extract any of the four context fields (recipient, situation, desiredTone, desiredOutcome).',
-    'Return extracted values in the corresponding fields. Use null for fields not yet known.',
-    'If fields are still missing, ask a friendly clarifying question in spokenResponse.',
-    'Set noteDraft to "" and tags to [] while still collecting.',
-    'Pick a style that matches the conversation mood so far.',
-  ].join('\n');
-}
-
-function buildComposePrompt(ctx: ConversationContext): string {
-  return [
-    'Stage: COMPOSE',
-    `Recipient: ${ctx.recipient}`,
-    `Situation: ${ctx.situation}`,
-    `Desired tone: ${ctx.desiredTone}`,
-    `Desired outcome: ${ctx.desiredOutcome}`,
-    '',
-    'Compose a beautiful, personalized love note based on the context above.',
-    'Set spokenResponse to a warm conversational message presenting the note.',
-    'Set noteDraft to the full love note text.',
-    'Set tags to descriptive tags for the note (e.g., #sweet, #romantic).',
-    'Set style to match the desired tone.',
-  ].join('\n');
-}
-
-function buildRefinePrompt(
-  transcript: string,
-  ctx: ConversationContext,
-  refinement?: RefinementRequest,
-): string {
-  const refinementInstruction = refinement
-    ? `The user clicked a refinement button: "${refinement.type}".`
-    : `The user said: "${transcript}"`;
-
-  return [
-    'Stage: REFINE',
-    `Current draft: ${ctx.currentDraft}`,
-    `Current tags: ${ctx.currentTags.join(', ')}`,
-    `Current style: ${ctx.currentStyle}`,
-    `Recipient: ${ctx.recipient}`,
-    `Situation: ${ctx.situation}`,
-    '',
-    refinementInstruction,
-    '',
-    'Update ONLY the noteDraft based on the refinement request.',
-    'Keep the same general meaning but apply the requested change.',
-    'Update tags if the character of the note changed.',
-    'Set spokenResponse to a brief confirmation of what you changed.',
-  ].join('\n');
-}
-
 // ── Context helpers ──
 
 export function isContextComplete(ctx: ConversationContext): boolean {
@@ -175,6 +88,8 @@ export class MastraWorkflowEngine {
   private sessions: Map<string, ConversationContext> = new Map();
   private agent: Agent;
   private callbacks: WorkflowEventCallbacks;
+  private bedrockRegion: string;
+  private modelId: string;
 
   // Mastra workflow and steps exposed for testing/inspection
   public collectStep;
@@ -186,11 +101,16 @@ export class MastraWorkflowEngine {
     voiceProvider?: SafeSecretsVoiceProvider,
     callbacks?: WorkflowEventCallbacks,
     agent?: Agent,
+    bedrockRegion?: string,
   ) {
     this.callbacks = callbacks ?? {};
 
+    const region = bedrockRegion ?? REGION;
     const modelId = process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-3-haiku-20240307-v1:0';
-    const bedrockProvider = createAmazonBedrock({ region: REGION });
+    const bedrockProvider = createAmazonBedrock({ region });
+
+    this.bedrockRegion = region;
+    this.modelId = modelId;
 
     this.agent =
       agent ??
@@ -540,7 +460,11 @@ export class MastraWorkflowEngine {
   }
 
   getRegion(): string {
-    return REGION;
+    return this.bedrockRegion;
+  }
+
+  getModelId(): string {
+    return this.modelId;
   }
 
   setCallbacks(callbacks: WorkflowEventCallbacks): void {
