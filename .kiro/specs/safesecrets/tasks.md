@@ -145,7 +145,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - _Requirements: 1.1, 1.4, 1.5_
 
 - [ ] 8. Frontend - Artifact Panel
-  - [~] 8.1 Implement the Artifact Panel component
+  - [-] 8.1 Implement the Artifact Panel component
     - Create `frontend/src/components/ArtifactPanel.tsx`
     - Render styled notepad with note draft text, tags, and tone label
     - Implement Copy button with clipboard API
