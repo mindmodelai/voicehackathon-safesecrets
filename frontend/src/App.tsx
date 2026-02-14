@@ -56,6 +56,10 @@ export function App() {
         audio.playAudioChunk(chunk);
       },
       onPartialTranscript: () => {
+        // Barge-in: stop TTS playback when user starts speaking
+        if (audio.isPlaying()) {
+          audio.stopPlayback();
+        }
         // Drive avatar to listening when user is speaking
         const state = sm.transition({ type: 'USER_SPEAKING_START' });
         setAvatarState(state);
