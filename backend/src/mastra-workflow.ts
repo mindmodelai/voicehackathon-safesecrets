@@ -67,6 +67,11 @@ const structuredOutputZod = z.object({
   spokenResponse: z.string().min(1),
   noteDraft: z.string(),
   tags: z.array(z.string()),
+  // Context extraction fields (used during collect stage)
+  recipient: z.string().nullable().optional(),
+  situation: z.string().nullable().optional(),
+  desiredTone: z.string().nullable().optional(),
+  desiredOutcome: z.string().nullable().optional(),
 });
 
 // ── Prompt builders ──
@@ -91,6 +96,7 @@ function buildCollectPrompt(transcript: string, ctx: ConversationContext): strin
     `User just said: "${transcript}"`,
     '',
     'Analyze what the user said. Extract any of the four context fields (recipient, situation, desiredTone, desiredOutcome).',
+    'Return extracted values in the corresponding fields. Use null for fields not yet known.',
     'If fields are still missing, ask a friendly clarifying question in spokenResponse.',
     'Set noteDraft to "" and tags to [] while still collecting.',
     'Pick a style that matches the conversation mood so far.',
@@ -347,6 +353,23 @@ export class MastraWorkflowEngine {
     if (output) {
       ctx.currentStyle = output.style;
 
+      // Extract context fields from the LLM response
+      const raw = output as unknown as Record<string, unknown>;
+      if (raw.recipient && typeof raw.recipient === 'string') {
+        ctx.recipient = raw.recipient;
+      }
+      if (raw.situation && typeof raw.situation === 'string') {
+        ctx.situation = raw.situation;
+      }
+      if (raw.desiredTone && typeof raw.desiredTone === 'string') {
+        ctx.desiredTone = raw.desiredTone;
+      }
+      if (raw.desiredOutcome && typeof raw.desiredOutcome === 'string') {
+        ctx.desiredOutcome = raw.desiredOutcome;
+      }
+
+      console.log(`[Workflow] Collect stage — recipient: ${ctx.recipient}, situation: ${ctx.situation}, tone: ${ctx.desiredTone}, outcome: ${ctx.desiredOutcome}`);
+
       // Check if context is now complete → transition to compose
       if (isContextComplete(ctx)) {
         ctx.stage = 'compose';
@@ -454,10 +477,11 @@ export class MastraWorkflowEngine {
 
       // Agent returns typed object when using structuredOutput
       const raw = response.object;
-      if (raw) {
-        const validation = validateStructuredOutput(raw);
-        if (validation.valid) {
-          return validation.data;
+      if (raw && typeof raw === 'object') {
+        const obj = raw as Record<string, unknown>;
+        // Validate core fields exist, but allow extra context fields
+        if (obj.style && obj.spokenResponse) {
+          return raw as StructuredOutput;
         }
       }
 
@@ -477,10 +501,10 @@ export class MastraWorkflowEngine {
         });
 
         const raw = retryResponse.object;
-        if (raw) {
-          const validation = validateStructuredOutput(raw);
-          if (validation.valid) {
-            return validation.data;
+        if (raw && typeof raw === 'object') {
+          const obj = raw as Record<string, unknown>;
+          if (obj.style && obj.spokenResponse) {
+            return raw as StructuredOutput;
           }
         }
 
