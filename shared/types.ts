@@ -60,7 +60,8 @@ export type ServerMessage =
   | { type: 'event'; event: 'tts.start' }
   | { type: 'event'; event: 'tts.end' }
   | { type: 'audio'; payload: { data: ArrayBuffer } }
-  | { type: 'event'; event: 'error'; data: { message: string } };
+  | { type: 'event'; event: 'error'; data: { message: string } }
+  | { type: 'event'; event: 'assistant_response'; data: { text: string; stage: string } };
 
 // ── Avatar events ──
 
