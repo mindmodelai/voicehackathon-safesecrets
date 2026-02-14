@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { RefinementRequest } from '../../../shared/types.js';
 import styles from './ArtifactPanel.module.css';
 
@@ -22,7 +23,8 @@ const toneStyleMap: Record<string, string> = {
   serious: styles.toneSerious,
 };
 
-export function ArtifactPanel({ noteDraft, tags, toneLabel, onRefinement, onCopy }: ArtifactPanelProps) {
+// Memoized to prevent re-renders when parent state (like transcript) updates but artifact props haven't changed.
+export const ArtifactPanel = memo(function ArtifactPanel({ noteDraft, tags, toneLabel, onRefinement, onCopy }: ArtifactPanelProps) {
   const hasNote = noteDraft.length > 0;
 
   return (
@@ -73,4 +75,4 @@ export function ArtifactPanel({ noteDraft, tags, toneLabel, onRefinement, onCopy
       </div>
     </section>
   );
-}
+});
