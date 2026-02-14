@@ -22,6 +22,7 @@ export function App() {
   const [assistantResponse, setAssistantResponse] = useState('');
   const [conversationStage, setConversationStage] = useState('collect');
   const [sovereigntyMode, setSovereigntyMode] = useState<SovereigntyMode>('full_canada');
+  const [showAbout, setShowAbout] = useState(false);
 
   const stateMachineRef = useRef(createAvatarStateMachine());
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
@@ -168,8 +169,8 @@ export function App() {
   const showStartButton = !isConnected || avatarState === 'idle';
 
   return (
-    <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
-      <Header />
+    <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 24px 24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
+      <Header onAboutClick={() => setShowAbout(true)} />
 
       {/* ── TOP ROW: Notepad (left) + Video screen (right) ── */}
       <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
@@ -181,7 +182,7 @@ export function App() {
             {/* Notepad video background — frozen at first frame, flipped on Y axis */}
             <video
               ref={notepadVideoRef}
-              src="/videos/notepad-compressed.mp4"
+              src="/videos/notepad-transparent.webm"
               muted
               playsInline
               preload="auto"
@@ -291,6 +292,60 @@ export function App() {
         </div>
 
       </div>
+
+      {/* About modal */}
+      {showAbout && (
+        <div
+          onClick={() => setShowAbout(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '40px 60px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: '16px',
+              padding: '40px',
+              maxWidth: '100%',
+              width: '100%',
+              maxHeight: '100%',
+              overflowY: 'auto',
+              position: 'relative',
+            }}
+          >
+            <button
+              onClick={() => setShowAbout(false)}
+              aria-label="Close about dialog"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '20px',
+                background: 'none',
+                border: 'none',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                color: '#888',
+              }}
+            >
+              ✕
+            </button>
+            <h2 style={{ fontFamily: "'Handlee', cursive", fontSize: '2rem', color: '#DC143C', marginBottom: '16px' }}>About SafeSecrets</h2>
+            <p style={{ lineHeight: 1.7, color: '#444', fontSize: '1rem' }}>
+              SafeSecrets is an AI-powered love note assistant built for the Waterloo Voice Hackathon.
+              Speak your feelings and let AI help you craft the perfect message — with full data sovereignty controls
+              so you choose where your data lives.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
