@@ -6,6 +6,63 @@ export type WorkflowStage = 'collect' | 'compose' | 'refine';
 
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
+// ── Sovereignty mode (data residency dial) ──
+
+export type SovereigntyMode =
+  | 'full_canada'        // All services in ca-central-1, Polly Neural
+  | 'canada_us_voice'    // Bedrock+Transcribe in CA, Polly Generative in us-east-1
+  | 'us_bedrock_voice'   // Bedrock+Transcribe+Polly all in us-east-1, Polly Generative
+  | 'full_us';           // All US + Smartest.ai TTS (future)
+
+export interface SovereigntyModeConfig {
+  label: string;
+  description: string;
+  bedrockRegion: string;
+  transcribeRegion: string;
+  pollyRegion: string;
+  pollyEngine: 'neural' | 'generative';
+  ttsProvider: 'polly' | 'smartest_ai';
+}
+
+export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> = {
+  full_canada: {
+    label: '🇨🇦 Full Canada',
+    description: 'All services in ca-central-1 (Polly Neural)',
+    bedrockRegion: 'ca-central-1',
+    transcribeRegion: 'ca-central-1',
+    pollyRegion: 'ca-central-1',
+    pollyEngine: 'neural',
+    ttsProvider: 'polly',
+  },
+  canada_us_voice: {
+    label: '🇨🇦 Canada + US Voice',
+    description: 'Bedrock & Transcribe in CA, Polly Generative in US',
+    bedrockRegion: 'ca-central-1',
+    transcribeRegion: 'ca-central-1',
+    pollyRegion: 'us-east-1',
+    pollyEngine: 'generative',
+    ttsProvider: 'polly',
+  },
+  us_bedrock_voice: {
+    label: '🇺🇸 US Bedrock + Voice',
+    description: 'All services in us-east-1 (Polly Generative)',
+    bedrockRegion: 'us-east-1',
+    transcribeRegion: 'us-east-1',
+    pollyRegion: 'us-east-1',
+    pollyEngine: 'generative',
+    ttsProvider: 'polly',
+  },
+  full_us: {
+    label: '🇺🇸 Full US + Smartest.ai',
+    description: 'US endpoints with Smartest.ai TTS (coming soon)',
+    bedrockRegion: 'us-east-1',
+    transcribeRegion: 'us-east-1',
+    pollyRegion: 'us-east-1',
+    pollyEngine: 'generative',
+    ttsProvider: 'smartest_ai',
+  },
+};
+
 // ── Structured Output (Bedrock LLM response contract) ──
 
 export interface StructuredOutput {
@@ -48,7 +105,8 @@ export type ClientMessage =
   | { type: 'audio'; payload: { data: ArrayBuffer; sampleRate: number } }
   | { type: 'control'; payload: { action: 'start_conversation' } }
   | { type: 'control'; payload: { action: 'end_conversation' } }
-  | { type: 'control'; payload: { action: 'refinement'; data: RefinementRequest } };
+  | { type: 'control'; payload: { action: 'refinement'; data: RefinementRequest } }
+  | { type: 'control'; payload: { action: 'set_mode'; data: { mode: SovereigntyMode } } };
 
 export type ServerMessage =
   | { type: 'event'; event: 'session_ready' }
@@ -61,7 +119,9 @@ export type ServerMessage =
   | { type: 'event'; event: 'tts.end' }
   | { type: 'audio'; payload: { data: ArrayBuffer } }
   | { type: 'event'; event: 'error'; data: { message: string } }
-  | { type: 'event'; event: 'assistant_response'; data: { text: string; stage: string } };
+  | { type: 'event'; event: 'assistant_response'; data: { text: string; stage: string } }
+  | { type: 'event'; event: 'mode_changed'; data: { mode: SovereigntyMode } }
+  | { type: 'event'; event: 'conversation_ended' };
 
 // ── Avatar events ──
 
