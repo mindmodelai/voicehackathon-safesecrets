@@ -1,0 +1,12 @@
+{
+  "name": "safesecrets-shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema.js": "./schema.ts",
+    "./types.js": "./types.ts",
+    "./schema": "./schema.ts",
+    "./types": "./types.ts"
+  }
+}
