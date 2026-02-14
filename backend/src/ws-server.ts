@@ -3,12 +3,15 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { z } from 'zod';
 import type { IncomingMessage } from 'node:http';
 import type { Server as HttpServer } from 'node:http';
-import type { ClientMessage, ServerMessage, ConversationContext } from '../../shared/types.js';
+import type { ClientMessage, ServerMessage, ConversationContext, SovereigntyMode, SOVEREIGNTY_MODES } from '../../shared/types.js';
+import { SOVEREIGNTY_MODES as MODE_CONFIGS } from '../../shared/types.js';
 import { TranscribeAdapter } from './transcribe-adapter.js';
 import type { AudioChunk } from './transcribe-adapter.js';
 import { PollyAdapter } from './polly-adapter.js';
 import { MastraWorkflowEngine } from './mastra-workflow.js';
 import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
+
+import { SmallestAdapter } from './smallest-adapter.js';
 
 // ── Constants ──
 
@@ -26,6 +29,8 @@ export interface SessionResources {
   context: ConversationContext | null;
   isActive: boolean;
   idleTimer: ReturnType<typeof setTimeout> | null;
+  sovereigntyMode: SovereigntyMode;
+  smallestAdapter: SmallestAdapter | null;
 }
 
 // ── Helpers ──
@@ -39,6 +44,12 @@ const ClientControlMessageSchema = z.object({
       action: z.literal('refinement'),
       data: z.object({
         type: z.enum(['shorter', 'bolder', 'more_romantic', 'translate_french']),
+      }),
+    }),
+    z.object({
+      action: z.literal('set_mode'),
+      data: z.object({
+        mode: z.enum(['full_canada', 'canada_us_voice', 'us_bedrock_voice', 'full_us']),
       }),
     }),
   ]),
@@ -82,6 +93,7 @@ function parseClientMessage(data: Buffer | ArrayBuffer | Buffer[], isBinary: boo
     if (result.success) {
       return result.data as ClientMessage;
     }
+    console.error('[WSServer] Message validation failed:', result.error.issues);
     return null;
   } catch {
     return null;
@@ -170,6 +182,8 @@ export class SafeSecretsWSServer {
       context: null,
       isActive: true,
       idleTimer: null,
+      sovereigntyMode: 'full_canada',
+      smallestAdapter: null,
     };
 
     this.sessions.set(sessionId, session);
@@ -264,6 +278,9 @@ export class SafeSecretsWSServer {
       case 'refinement':
         this.handleRefinement(session, payload.data as { type: string });
         break;
+      case 'set_mode':
+        this.handleSetMode(session, (payload.data as { mode: SovereigntyMode }).mode);
+        break;
       default:
         sendMessage(session.ws, {
           type: 'event',
@@ -277,6 +294,18 @@ export class SafeSecretsWSServer {
 
   private async startConversation(session: SessionResources): Promise<void> {
     const { sessionId, ws, transcribeAdapter, mastraWorkflow, pollyAdapter } = session;
+
+    // Log pipeline settings
+    const ttsProvider = (session.sovereigntyMode === 'full_us' && session.smallestAdapter)
+      ? `Smallest.ai (voice: ${session.smallestAdapter.getVoiceId()})`
+      : `Polly ${pollyAdapter.getEngine()} (voice: ${pollyAdapter.getVoiceId()}, region: ${pollyAdapter.getRegion()})`;
+    console.log([
+      `[WSServer] ▶ Starting conversation`,
+      `  Mode:  ${session.sovereigntyMode}`,
+      `  STT:   Amazon Transcribe — region: ${transcribeAdapter.getRegion()}`,
+      `  LLM:   ${mastraWorkflow.getModelId()} — region: ${mastraWorkflow.getRegion()}`,
+      `  TTS:   ${ttsProvider}`,
+    ].join('\n'));
 
     try {
       // Initialize Mastra session
@@ -393,20 +422,24 @@ export class SafeSecretsWSServer {
     let chunkCount = 0;
     let totalBytes = 0;
 
-    try {
-      await session.pollyAdapter.synthesize(text, (chunk: Buffer) => {
-        if (session.isActive && session.ws.readyState === WebSocket.OPEN) {
-          chunkCount++;
-          totalBytes += chunk.byteLength;
-          console.log(`[WSServer] TTS chunk #${chunkCount}: ${chunk.byteLength} bytes (total: ${totalBytes})`);
+    const onChunk = (chunk: Buffer) => {
+      if (session.isActive && session.ws.readyState === WebSocket.OPEN) {
+        chunkCount++;
+        totalBytes += chunk.byteLength;
 
-          sendMessage(session.ws, {
-            type: 'audio',
-            payload: { data: chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer },
-          });
-        }
-      });
-      console.log(`[WSServer] TTS complete: ${chunkCount} chunks, ${totalBytes} total bytes`);
+        sendMessage(session.ws, {
+          type: 'audio',
+          payload: { data: chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer },
+        });
+      }
+    };
+
+    try {
+      if (session.sovereigntyMode === 'full_us' && session.smallestAdapter) {
+        await session.smallestAdapter.synthesize(text, onChunk);
+      } else {
+        await session.pollyAdapter.synthesize(text, onChunk);
+      }
     } catch (err) {
       console.error(`[WSServer] TTS error for session ${session.sessionId}:`, err);
     } finally {
@@ -417,9 +450,87 @@ export class SafeSecretsWSServer {
   // ── End conversation ──
 
   private async endConversation(session: SessionResources): Promise<void> {
+    console.log(`[WSServer] ■ Ending conversation — session ${session.sessionId}`);
     await this.stopSessionStreams(session);
     session.context = null;
+    sendMessage(session.ws, { type: 'event', event: 'conversation_ended' });
   }
+  private handleSetMode(session: SessionResources, mode: SovereigntyMode): void {
+    const config = MODE_CONFIGS[mode];
+    if (!config) {
+      sendMessage(session.ws, {
+        type: 'event',
+        event: 'error',
+        data: { message: `Unknown sovereignty mode: ${mode}` },
+      });
+      return;
+    }
+
+    // End any active conversation before switching modes
+    if (session.context) {
+      this.endConversation(session);
+    }
+
+    // Smartest.ai requires API key
+    if (config.ttsProvider === 'smartest_ai') {
+      const apiKey = process.env.SMALLEST_AI_API_KEY;
+      if (!apiKey) {
+        sendMessage(session.ws, {
+          type: 'event',
+          event: 'error',
+          data: { message: 'Smallest.ai API key not configured. Set SMALLEST_AI_API_KEY.' },
+        });
+        return;
+      }
+      session.smallestAdapter = new SmallestAdapter(apiKey, 'sophia');
+    } else {
+      session.smallestAdapter = null;
+    }
+
+    // Recreate adapters with new region config
+    session.transcribeAdapter = new TranscribeAdapter(config.transcribeRegion);
+    session.pollyAdapter = new PollyAdapter({
+      region: config.pollyRegion,
+      engine: config.pollyEngine,
+    });
+    session.voiceProvider = new SafeSecretsVoiceProvider(session.transcribeAdapter, session.pollyAdapter);
+
+    // Recreate the workflow engine with the new Bedrock region
+    session.mastraWorkflow = new MastraWorkflowEngine(
+      session.voiceProvider,
+      {
+        onStyleUpdate: (style) => {
+          sendMessage(session.ws, { type: 'event', event: 'ui.style', data: { style } });
+        },
+        onNoteDraftUpdate: (noteDraft, tags) => {
+          sendMessage(session.ws, { type: 'event', event: 'ui.noteDraft', data: { noteDraft, tags } });
+        },
+      },
+      undefined,
+      config.bedrockRegion,
+    );
+
+    session.sovereigntyMode = mode;
+
+    // Log the new pipeline settings
+    const ttsDesc = config.ttsProvider === 'smartest_ai'
+      ? `Smallest.ai (voice: ${session.smallestAdapter?.getVoiceId()})`
+      : `Polly ${session.pollyAdapter.getEngine()} (voice: ${session.pollyAdapter.getVoiceId()}, region: ${session.pollyAdapter.getRegion()})`;
+    console.log([
+      `[WSServer] 🔄 Mode switched`,
+      `  Mode:  ${mode}`,
+      `  STT:   Amazon Transcribe — region: ${session.transcribeAdapter.getRegion()}`,
+      `  LLM:   ${session.mastraWorkflow.getModelId()} — region: ${session.mastraWorkflow.getRegion()}`,
+      `  TTS:   ${ttsDesc}`,
+    ].join('\n'));
+
+    sendMessage(session.ws, {
+      type: 'event',
+      event: 'mode_changed',
+      data: { mode },
+    });
+  }
+
 
   // ── Idle timeout ──
 
