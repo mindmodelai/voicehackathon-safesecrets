@@ -19,6 +19,7 @@ export interface WSClientEvents {
   onTTSStart: () => void;
   onTTSEnd: () => void;
   onAudioChunk: (chunk: ArrayBuffer) => void;
+  onAssistantResponse: (text: string, stage: string) => void;
   onError: (error: string) => void;
 }
 
@@ -145,6 +146,9 @@ export class WSClientImpl implements WSClient {
         break;
       case 'tts.end':
         this.handlers.onTTSEnd?.();
+        break;
+      case 'assistant_response':
+        this.handlers.onAssistantResponse?.(message.data.text, message.data.stage);
         break;
       case 'error':
         this.handlers.onError?.(message.data.message);

@@ -307,8 +307,13 @@ export class SafeSecretsWSServer {
     try {
       const result = await session.mastraWorkflow.processTranscript(session.sessionId, transcript);
 
-      // If there's a spoken response, synthesize it via Polly
+      // Send the assistant's text response to the client for display
       if (result.spokenResponse) {
+        sendMessage(session.ws, {
+          type: 'event',
+          event: 'assistant_response',
+          data: { text: result.spokenResponse, stage: result.stage ?? 'collect' },
+        });
         await this.synthesizeAndStream(session, result.spokenResponse);
       }
     } catch (err) {
@@ -341,6 +346,11 @@ export class SafeSecretsWSServer {
       );
 
       if (result.spokenResponse) {
+        sendMessage(session.ws, {
+          type: 'event',
+          event: 'assistant_response',
+          data: { text: result.spokenResponse, stage: result.stage ?? 'refine' },
+        });
         await this.synthesizeAndStream(session, result.spokenResponse);
       }
     } catch (err) {
