@@ -163,29 +163,29 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Generate random refinement button clicks, verify correct RefinementRequest type is emitted
     - **Validates: Requirements 6.5**
 
-- [ ] 9. Frontend - Avatar and main layout
-  - [~] 9.1 Implement the 3D Heart Avatar component
+- [x] 9. Frontend - Avatar and main layout
+  - [x] 9.1 Implement the 3D Heart Avatar component
     - Create `frontend/src/components/HeartAvatar.tsx`
     - Render video element that switches source based on AvatarState and SpeakingStyle
     - Wire to Avatar State Machine for state-driven video switching
     - Include idle ambient loop, listening glow, thinking shimmer, and 3 speaking variants
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [~] 9.2 Implement the Audio Manager
+  - [x] 9.2 Implement the Audio Manager
     - Create `frontend/src/audio-manager.ts`
     - Implement `startCapture()` using MediaRecorder/AudioWorklet for microphone input
     - Implement `playAudioChunk()` for streaming TTS audio playback
     - Implement `stopPlayback()` for barge-in cancellation
     - _Requirements: 4.5_
 
-  - [~] 9.3 Implement the WebSocket Client
+  - [x] 9.3 Implement the WebSocket Client
     - Create `frontend/src/ws-client.ts`
     - Connect to backend `/ws` endpoint
     - Send audio chunks and control messages
     - Parse incoming ServerMessages and dispatch to event handlers
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [~] 9.4 Implement the main App layout
+  - [x] 9.4 Implement the main App layout
     - Create `frontend/src/App.tsx` with two-panel layout
     - Left panel: HeartAvatar component
     - Right panel: ArtifactPanel component
