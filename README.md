@@ -51,7 +51,7 @@ Then open `http://localhost:3000`
 
 ## Architecture
 
-See `.kiro/specs/valentines-voice-ai/design.md` for the full architecture and design document.
+See `.kiro/specs/safesecrets/design.md` for the full architecture and design document.
 
 ## License
 

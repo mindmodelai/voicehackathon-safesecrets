@@ -529,7 +529,7 @@ interface SessionResources {
 
 ### Property-Based Testing Configuration
 - Each property test runs a minimum of 100 iterations
-- Each test is tagged with: `Feature: valentines-voice-ai, Property {N}: {title}`
+- Each test is tagged with: `Feature: safesecrets, Property {N}: {title}`
 - fast-check arbitraries are used to generate random events, structured outputs, and conversation contexts
 
 ### Unit Test Focus Areas
