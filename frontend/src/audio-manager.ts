@@ -87,7 +87,6 @@ export class AudioManagerImpl implements AudioManager {
     // Create an AudioContext — browser may give us a higher sample rate
     this.captureContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
     const actualSampleRate = this.captureContext.sampleRate;
-    console.log(`[AudioManager] Capture context created. Requested ${TARGET_SAMPLE_RATE}Hz, got ${actualSampleRate}Hz`);
 
     this.sourceNode = this.captureContext.createMediaStreamSource(this.mediaStream);
 
@@ -136,45 +135,22 @@ export class AudioManagerImpl implements AudioManager {
     this.chunkCount++;
     this.totalBytesReceived += chunk.byteLength;
 
-    // Debug: log every chunk
-    const sampleCount = chunk.byteLength / 2; // 16-bit = 2 bytes per sample
-    const durationMs = (sampleCount / POLLY_SAMPLE_RATE) * 1000;
-    console.log(
-      `[AudioManager] Chunk #${this.chunkCount}: ${chunk.byteLength} bytes, ` +
-      `${sampleCount} samples, ~${durationMs.toFixed(1)}ms of audio. ` +
-      `Total received: ${this.totalBytesReceived} bytes`
-    );
-
     // Validate chunk
-    if (chunk.byteLength === 0) {
-      console.warn('[AudioManager] Received empty chunk, skipping');
-      return;
-    }
-    if (chunk.byteLength % 2 !== 0) {
-      console.warn(`[AudioManager] Chunk has odd byte length (${chunk.byteLength}), not valid PCM16`);
-    }
+    if (chunk.byteLength === 0) return;
 
     if (!this.playbackContext) {
       this.playbackContext = new AudioContext();
-      console.log(`[AudioManager] Playback context created. Sample rate: ${this.playbackContext.sampleRate}Hz, state: ${this.playbackContext.state}`);
     }
 
     const ctx = this.playbackContext;
 
     // Resume if suspended (browsers require user gesture)
     if (ctx.state === 'suspended') {
-      console.log('[AudioManager] Resuming suspended AudioContext');
       ctx.resume();
     }
 
-    // Peek at first few samples for debugging
+    // Convert Int16 PCM to Float32 for Web Audio
     const pcmData = new Int16Array(chunk);
-    const first5 = Array.from(pcmData.slice(0, 5));
-    const maxVal = pcmData.reduce((max, v) => Math.max(max, Math.abs(v)), 0);
-    console.log(
-      `[AudioManager] PCM Int16 samples: first5=${JSON.stringify(first5)}, ` +
-      `max amplitude=${maxVal}, total samples=${pcmData.length}`
-    );
 
     // Convert Int16 PCM to Float32 for Web Audio
     const floatData = new Float32Array(pcmData.length);
@@ -195,12 +171,6 @@ export class AudioManagerImpl implements AudioManager {
     this.scheduledTime = startAt + audioBuffer.duration;
     this.totalSamplesScheduled += pcmData.length;
 
-    console.log(
-      `[AudioManager] Scheduled chunk #${this.chunkCount} at t=${startAt.toFixed(3)}s, ` +
-      `duration=${audioBuffer.duration.toFixed(3)}s, next scheduled=${this.scheduledTime.toFixed(3)}s, ` +
-      `ctx.currentTime=${ctx.currentTime.toFixed(3)}s, active sources=${this.activeSources.length + 1}`
-    );
-
     this.activeSources.push(source);
     this.playing = true;
 
@@ -211,10 +181,6 @@ export class AudioManagerImpl implements AudioManager {
       }
       if (this.activeSources.length === 0) {
         this.playing = false;
-        console.log(
-          `[AudioManager] All playback complete. Total chunks: ${this.chunkCount}, ` +
-          `total bytes: ${this.totalBytesReceived}, total samples: ${this.totalSamplesScheduled}`
-        );
       }
     };
   }
@@ -223,7 +189,6 @@ export class AudioManagerImpl implements AudioManager {
    * Immediately stops all queued/playing audio — critical for barge-in.
    */
   stopPlayback(): void {
-    console.log(`[AudioManager] stopPlayback called. Active sources: ${this.activeSources.length}, playing: ${this.playing}`);
     for (const source of this.activeSources) {
       try {
         source.stop();
