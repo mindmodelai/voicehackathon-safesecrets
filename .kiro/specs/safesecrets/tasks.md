@@ -33,12 +33,12 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Handle all AvatarEvent types: USER_SPEAKING_START, USER_SPEAKING_END, TTS_START, TTS_END, THINKING_START, THINKING_END
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
 
-  - [ ]* 2.2 Write property test for state machine priority invariant
+  - [x]* 2.2 Write property test for state machine priority invariant
     - **Property 1: Avatar state machine priority invariant**
     - Generate random sequences of AvatarEvents, apply them, verify priority order is never violated
     - **Validates: Requirements 4.5, 5.1, 5.2, 5.3, 5.5, 5.6**
 
-  - [ ]* 2.3 Write property test for speaking style video selection
+  - [x]* 2.3 Write property test for speaking style video selection
     - **Property 2: Speaking style selects correct video source**
     - Generate random valid style values, verify correct video source path is returned
     - **Validates: Requirements 5.4**
@@ -153,12 +153,12 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Display placeholder guidance text when no note exists
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-  - [ ]* 8.2 Write property test for artifact panel rendering
+  - [x]* 8.2 Write property test for artifact panel rendering
     - **Property 8: Artifact panel renders all structured output fields**
     - Generate random StructuredOutputs, render the panel, verify noteDraft, tags, and tone label appear
     - **Validates: Requirements 6.1, 6.2, 6.3**
 
-  - [ ]* 8.3 Write property test for refinement button mapping
+  - [x]* 8.3 Write property test for refinement button mapping
     - **Property 9: Refinement buttons map to correct request types**
     - Generate random refinement button clicks, verify correct RefinementRequest type is emitted
     - **Validates: Requirements 6.5**
