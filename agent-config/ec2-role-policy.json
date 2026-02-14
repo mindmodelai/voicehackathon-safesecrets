@@ -1,0 +1,30 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BedrockAccess",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "TranscribeAccess",
+      "Effect": "Allow",
+      "Action": [
+        "transcribe:StartStreamTranscription"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PollyAccess",
+      "Effect": "Allow",
+      "Action": [
+        "polly:SynthesizeSpeech"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
