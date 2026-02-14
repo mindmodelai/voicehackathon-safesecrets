@@ -194,7 +194,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - _Requirements: 9.1, 9.2, 9.4, 9.5_
 
 - [ ] 10. Integration and wiring
-  - [~] 10.1 Wire the full voice pipeline end-to-end
+  - [-] 10.1 Wire the full voice pipeline end-to-end
     - Connect: Mic → WebSocket → Transcribe → Mastra Workflow → Bedrock → Polly → Audio playback
     - Ensure avatar state transitions fire correctly through the full flow
     - Ensure artifact panel updates on compose and refine stages
