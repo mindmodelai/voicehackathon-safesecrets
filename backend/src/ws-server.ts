@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
+import { z } from 'zod';
 import type { IncomingMessage } from 'node:http';
 import type { Server as HttpServer } from 'node:http';
 import type { ClientMessage, ServerMessage, ConversationContext } from '../../shared/types.js';
@@ -28,6 +29,20 @@ export interface SessionResources {
 }
 
 // ── Helpers ──
+
+const ClientControlMessageSchema = z.object({
+  type: z.literal('control'),
+  payload: z.discriminatedUnion('action', [
+    z.object({ action: z.literal('start_conversation') }),
+    z.object({ action: z.literal('end_conversation') }),
+    z.object({
+      action: z.literal('refinement'),
+      data: z.object({
+        type: z.enum(['shorter', 'bolder', 'more_romantic', 'translate_french']),
+      }),
+    }),
+  ]),
+});
 
 /**
  * Sends a ServerMessage to the client as JSON. Binary audio messages
@@ -62,7 +77,12 @@ function parseClientMessage(data: Buffer | ArrayBuffer | Buffer[], isBinary: boo
   try {
     const text = Buffer.isBuffer(data) ? data.toString('utf-8') : new TextDecoder().decode(data as ArrayBuffer);
     const parsed = JSON.parse(text);
-    return parsed as ClientMessage;
+    const result = ClientControlMessageSchema.safeParse(parsed);
+
+    if (result.success) {
+      return result.data as ClientMessage;
+    }
+    return null;
   } catch {
     return null;
   }
