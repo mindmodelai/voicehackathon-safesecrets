@@ -193,7 +193,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Wire WebSocket events to Avatar State Machine and Artifact Panel
     - _Requirements: 9.1, 9.2, 9.4, 9.5_
 
-- [ ] 10. Integration and wiring
+- [x] 10. Integration and wiring
   - [x] 10.1 Wire the full voice pipeline end-to-end
     - Connect: Mic → WebSocket → Transcribe → Mastra Workflow → Bedrock → Polly → Audio playback
     - Ensure avatar state transitions fire correctly through the full flow
@@ -213,7 +213,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Test error recovery paths
     - _Requirements: 9.2, 9.4, 9.5_
 
-- [~] 11. Final checkpoint - Ensure all tests pass
+- [x] 11. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
