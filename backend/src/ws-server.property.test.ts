@@ -145,7 +145,8 @@ describe('Property 10: Backend events forwarded to client', () => {
         const received = await messages;
         const errorMsg = received.find((m: any) => m.type === 'event' && m.event === 'error');
         expect(errorMsg).toBeDefined();
-        expect(errorMsg.data.message).toContain(action);
+        // Strict validation now rejects unknown actions as invalid format
+        expect(errorMsg.data.message).toBe('Invalid message format');
 
         client.close();
         await new Promise((r) => setTimeout(r, 50));
