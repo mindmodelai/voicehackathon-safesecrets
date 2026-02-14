@@ -1,0 +1,10 @@
+{
+  "anthropic_version": "bedrock-2023-05-31",
+  "max_tokens": 500,
+  "messages": [
+    {
+      "role": "user",
+      "content": "You are a creative writing assistant helping someone compose a heartfelt love note. Generate a structured response with the following: 1) A romantic poem about missing someone, 2) The emotional tone/style you used (soft/flirty/serious), and 3) Three hashtags that describe the poem. Format your response as JSON with keys: poem, style, and tags."
+    }
+  ]
+}
