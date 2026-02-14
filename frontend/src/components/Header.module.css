@@ -2,26 +2,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 16px;
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .logo {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #DC143C;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
+  width: 400px;
+  height: auto;
+  object-fit: contain;
 }
 
 .logoRight {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #666;
-  white-space: nowrap;
+  height: 36px;
+  width: auto;
+  object-fit: contain;
 }
 
 .nav {
@@ -33,13 +29,30 @@
 }
 
 .navLink {
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-family: 'PT Sans', sans-serif;
   color: #444;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .navLink:hover {
+  color: #DC143C;
+}
+
+.navButton {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-family: 'PT Sans', sans-serif;
+  color: #444;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.navButton:hover {
   color: #DC143C;
 }
