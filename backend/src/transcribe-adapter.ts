@@ -27,14 +27,21 @@ interface SessionStream {
   sampleRate: number;
 }
 
-const REGION = 'ca-central-1';
+const DEFAULT_REGION = 'ca-central-1';
 
 export class TranscribeAdapter {
   private client: TranscribeStreamingClient;
   private sessions: Map<string, SessionStream> = new Map();
+  private region: string;
 
-  constructor(client?: TranscribeStreamingClient) {
-    this.client = client ?? new TranscribeStreamingClient({ region: REGION });
+  constructor(clientOrRegion?: TranscribeStreamingClient | string) {
+    if (typeof clientOrRegion === 'string') {
+      this.region = clientOrRegion;
+      this.client = new TranscribeStreamingClient({ region: this.region });
+    } else {
+      this.region = DEFAULT_REGION;
+      this.client = clientOrRegion ?? new TranscribeStreamingClient({ region: this.region });
+    }
   }
 
   /**
@@ -187,7 +194,7 @@ export class TranscribeAdapter {
    * Returns the AWS region this adapter is pinned to.
    */
   getRegion(): string {
-    return REGION;
+    return this.region;
   }
 
   /**
