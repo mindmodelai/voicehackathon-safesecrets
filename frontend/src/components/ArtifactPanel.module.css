@@ -1,259 +1,109 @@
-/* Artifact Panel Component Styles */
+/* Artifact Panel — overlays on notepad video */
 
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  background: var(--ss-panel-bg, #fffaf5);
-  border: 1px solid var(--ss-border, #f0e0d0);
-  border-radius: var(--ss-radius, 12px);
-  font-family: var(--ss-font-handwriting, 'Handlee', cursive);
-  min-height: 300px;
-  max-width: 480px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  height: 100%;
+  background: transparent;
 }
 
-/* Note Area - Notepad Style */
-.noteArea {
+/* Top 1/3: prompt text */
+.promptSection {
   flex: 1;
-  white-space: pre-wrap;
-  line-height: 1.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.promptHeading {
+  font-family: 'Handlee', cursive;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #111;
+  text-align: center;
+  line-height: 1.3;
+  margin: 0 0 6px;
+}
+
+.promptSub {
   font-size: 1.05rem;
-  color: var(--ss-text, #3a2a1a);
-  padding: 16px;
-  background: 
-    linear-gradient(transparent 1.6rem, #e8ddd0 1.6rem),
-    #fff;
-  background-size: 100% 1.7rem;
-  border-radius: 8px;
-  border: 1px solid var(--ss-border, #ece0d4);
-  min-height: 120px;
-  max-height: 400px;
-  overflow-y: auto;
-  transform: rotate(-0.5deg);
-  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.08);
-  animation: fadeInSlideUp 0.5s ease-out;
+  color: #333;
+  text-align: center;
+  line-height: 1.4;
+  margin: 0;
 }
 
-@keyframes fadeInSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px) rotate(-0.5deg);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) rotate(-0.5deg);
-  }
+/* Bottom 2/3: sovereignty mode buttons sitting on the angled notepad.
+   We use a perspective container + rotateX to tilt the surface away,
+   and skew to make the right edge shorter than the left — trapezoid. */
+.optionsWrapper {
+  flex: 2;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-top: none;
+  perspective: 400px;
+  perspective-origin: center top;
+  overflow: visible;
 }
 
-.placeholder {
-  color: var(--ss-text-muted, #b8a898);
-  font-style: italic;
-}
-
-/* Tone Labels */
-.toneLabel {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: capitalize;
-  letter-spacing: 0.5px;
-}
-
-.toneSoft {
-  background: #fce4ec;
-  color: #c62828;
-}
-
-.toneFlirty {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-
-.toneSerious {
-  background: #e8eaf6;
-  color: #283593;
-}
-
-/* Tags with Heart Icons */
-.tags {
+.optionsSection {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 20px;
+  height: 100%;
+  /* Tilt the surface back and skew so right edge is shorter */
+  transform: rotateX(8deg) rotateY(3deg) skewY(-1.5deg);
+  transform-origin: right top;
+  transform-style: preserve-3d;
 }
 
-.tag {
-  display: inline-block;
-  padding: 2px 10px;
-  background: #fdf0e6;
-  border: 1px solid #f0d8c0;
-  border-radius: 12px;
-  font-size: 0.78rem;
-  color: var(--ss-text-muted, #8b6f50);
-}
-
-.tag::before {
-  content: '❤ ';
-  color: var(--ss-accent, #DC143C);
-  font-size: 0.7rem;
-}
-
-/* Action Buttons */
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--ss-border, #f0e0d0);
-}
-
-/* Copy Button with Checkmark Animation */
-.copyButton {
-  padding: 6px 16px;
-  background: var(--ss-accent, #d32f2f);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+.modeButton {
+  width: 80%;
+  padding: 10px 16px;
   font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.copyButton:hover:not(:disabled) {
-  background: var(--ss-accent-dark, #b71c1c);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(220, 20, 60, 0.3);
-}
-
-.copyButton:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.copyButton:active:not(:disabled)::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(2);
-  opacity: 0;
-  animation: checkmark 0.4s ease-out;
-}
-
-@keyframes checkmark {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(2);
-  }
-}
-
-.copyButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: #ccc;
-}
-
-.copyButton:focus-visible {
-  outline: 3px solid var(--ss-accent, #DC143C);
-  outline-offset: 2px;
-}
-
-/* Refinement Buttons with Icons */
-.refinementButton {
-  padding: 6px 14px;
-  background: #fff;
-  color: var(--ss-text, #5d4037);
-  border: 1px solid var(--ss-border, #d7c4b0);
-  border-radius: 8px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  color: #fff;
   cursor: pointer;
-  font-size: 0.82rem;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-.refinementButton:hover:not(:disabled) {
-  background: #fdf0e6;
-  border-color: #c4a882;
-  transform: translateY(-1px);
+.modeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
-.refinementButton:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.refinementButton:focus-visible {
-  outline: 2px solid var(--ss-accent, #DC143C);
-  outline-offset: 2px;
-}
-
-/* Add emoji icons before button text */
-.refinementButton:nth-child(2)::before {
-  content: '✂️ ';
-}
-
-.refinementButton:nth-child(3)::before {
-  content: '💪 ';
-}
-
-.refinementButton:nth-child(4)::before {
-  content: '💕 ';
-}
-
-.refinementButton:nth-child(5)::before {
-  content: '🇫🇷 ';
+.modeButtonActive {
+  background: rgba(220, 20, 60, 0.7);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .panel {
-    max-width: 100%;
+  .promptHeading {
+    font-size: 1.7rem;
   }
 
-  .noteArea {
-    font-size: 1rem;
+  .promptSub {
+    font-size: 0.9rem;
+  }
+
+  .modeButton {
+    font-size: 0.78rem;
+    padding: 8px 12px;
   }
 }
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-  .noteArea {
-    animation: none;
-    transform: rotate(0deg);
-  }
-
-  .copyButton:active:not(:disabled)::after {
-    animation: none;
-  }
-
-  .copyButton:hover:not(:disabled),
-  .refinementButton:hover:not(:disabled) {
-    transform: none;
-  }
-}
-
-/* Dark Mode */
-@media (prefers-color-scheme: dark) {
-  .noteArea {
-    background: 
-      linear-gradient(transparent 1.6rem, #3a2a2f 1.6rem),
-      #2a1a1f;
-    color: var(--ss-text, #F5E6EA);
-  }
-
-  .refinementButton {
-    background: #3a2a2f;
-    color: var(--ss-text, #F5E6EA);
-  }
-
-  .refinementButton:hover:not(:disabled) {
-    background: #4a3a3f;
+  .modeButton {
+    transition: none;
   }
 }
