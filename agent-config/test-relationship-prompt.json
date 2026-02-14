@@ -1,0 +1,11 @@
+{
+  "anthropic_version": "bedrock-2023-05-31",
+  "max_tokens": 800,
+  "temperature": 0.7,
+  "messages": [
+    {
+      "role": "user",
+      "content": "I want to write a heartfelt note to my partner. We've been together for 3 years and I want to express how much I appreciate their support during a difficult time at work. The tone should be warm and sincere, not overly dramatic. Please create a love note with the following structure as JSON: {\"style\": \"soft/flirty/serious\", \"spokenResponse\": \"what you'd say to me conversationally\", \"noteDraft\": \"the actual note text\", \"tags\": [\"#tag1\", \"#tag2\", \"#tag3\"]}"
+    }
+  ]
+}
