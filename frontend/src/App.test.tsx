@@ -189,7 +189,9 @@ describe('WebSocket event wiring', () => {
     act(() => {
       capturedHandlers.onTTSEnd();
     });
-    expect(mockStopPlayback).toHaveBeenCalled();
+    // stopPlayback is NOT called on tts.end — audio needs to finish playing.
+    // stopPlayback is only for barge-in (user starts speaking).
+    expect(mockStopPlayback).not.toHaveBeenCalled();
   });
 });
 
