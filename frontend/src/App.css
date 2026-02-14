@@ -2,7 +2,7 @@
 
 :root {
   /* Valentine's Day Color Palette */
-  --ss-bg: #FFF0F5;
+  --ss-bg: #f6f9f8;
   --ss-panel-bg: #FFFAF5;
   --ss-accent: #DC143C;
   --ss-accent-dark: #8B0000;
@@ -11,8 +11,9 @@
   --ss-border: #F0E0D0;
   
   /* Typography */
-  --ss-font-display: 'Playfair Display', Georgia, serif;
-  --ss-font-body: 'Inter', system-ui, sans-serif;
+  --ss-font-display: 'PT Sans', sans-serif;
+  --ss-font-body: 'PT Sans Caption', sans-serif;
+  --ss-font-handwriting: 'Handlee', cursive;
   
   /* Layout */
   --ss-radius: 12px;
@@ -27,7 +28,7 @@
 body {
   font-family: var(--ss-font-body);
   color: var(--ss-text);
-  background: linear-gradient(135deg, var(--ss-bg) 0%, #FFE4E9 100%);
+  background: linear-gradient(to top, #f8e8ee, var(--ss-bg) 40%);
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -187,6 +188,6 @@ body {
   }
 
   body {
-    background: linear-gradient(135deg, var(--ss-bg) 0%, #2A1520 100%);
+    background: linear-gradient(to top, #2A1520, var(--ss-bg) 40%);
   }
 }
