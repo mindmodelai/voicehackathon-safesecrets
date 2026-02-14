@@ -6,8 +6,8 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
 
 ## Tasks
 
-- [ ] 1. Project scaffolding and shared types
-  - [-] 1.1 Initialize monorepo with backend and frontend packages
+- [x] 1. Project scaffolding and shared types
+  - [x] 1.1 Initialize monorepo with backend and frontend packages
     - Create `backend/` (Node/TypeScript) and `frontend/` (React/TypeScript) directories
     - Set up `package.json` for each with TypeScript, Vitest, and fast-check
     - Install Mastra SDK: `@mastra/core`, `@mastra/voice`, `@ai-sdk/amazon-bedrock`
@@ -15,7 +15,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Install WebSocket library: `ws` for backend, native WebSocket for frontend
     - _Requirements: 8.1_
 
-  - [~] 1.2 Define shared TypeScript types and interfaces
+  - [x] 1.2 Define shared TypeScript types and interfaces
     - Create `shared/types.ts` with: `StructuredOutput`, `ClientMessage`, `ServerMessage`, `RefinementRequest`, `WorkflowStage`, `ConversationContext`, `AvatarState`, `SpeakingStyle`, `AvatarEvent`
     - Create `shared/schema.ts` with the JSON schema for StructuredOutput validation
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
