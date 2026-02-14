@@ -28,6 +28,7 @@ build/
 shared/*.js
 shared/*.js.map
 shared/*.d.ts
+shared/*.d.ts.map
 
 # IDE
 .vscode/
@@ -48,3 +49,6 @@ sam-raw/
 
 # Internal working files
 sam-internal/
+
+# Test artifacts
+*.pcm
