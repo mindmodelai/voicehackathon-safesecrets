@@ -1,0 +1,65 @@
+import { useRef, useEffect } from 'react';
+import type { AvatarState, SpeakingStyle } from '../../../shared/types.js';
+
+export interface HeartAvatarProps {
+  avatarState: AvatarState;
+  speakingStyle: SpeakingStyle;
+}
+
+/**
+ * Returns the video source path for the given avatar state and speaking style.
+ * Speaking state uses style-specific variants; other states use a single video.
+ */
+export function getVideoSourceForState(state: AvatarState, style: SpeakingStyle): string {
+  if (state === 'speaking') {
+    return `/videos/speaking-${style}.mp4`;
+  }
+  return `/videos/${state}.mp4`;
+}
+
+/**
+ * 3D Heart Avatar component.
+ * Renders a looping video element that switches source based on the current
+ * AvatarState and SpeakingStyle. Visual states include:
+ * - idle: ambient loop
+ * - listening: glow animation
+ * - thinking: shimmer animation
+ * - speaking: style-specific variant (soft, flirty, serious)
+ */
+export function HeartAvatar({ avatarState, speakingStyle }: HeartAvatarProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoSrc = getVideoSourceForState(avatarState, speakingStyle);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Only reload when the source actually changes
+    if (video.getAttribute('src') !== videoSrc) {
+      video.src = videoSrc;
+      video.load();
+      video.play().catch(() => {
+        // Autoplay may be blocked by browser policy — silently ignore
+      });
+    }
+  }, [videoSrc]);
+
+  return (
+    <div
+      className={`heart-avatar heart-avatar--${avatarState}`}
+      role="img"
+      aria-label={`Heart avatar — ${avatarState}`}
+    >
+      <video
+        ref={videoRef}
+        src={videoSrc}
+        loop
+        autoPlay
+        muted
+        playsInline
+        data-testid="heart-avatar-video"
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
