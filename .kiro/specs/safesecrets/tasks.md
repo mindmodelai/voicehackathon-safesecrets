@@ -119,11 +119,11 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Generate random contexts and refinement requests, verify non-draft fields unchanged
     - **Validates: Requirements 3.5**
 
-- [~] 6. Checkpoint - Ensure all tests pass
+- [x] 6. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. WebSocket Server
-  - [~] 7.1 Implement the WebSocket Server
+- [x] 7. WebSocket Server
+  - [x] 7.1 Implement the WebSocket Server
     - Create `backend/src/ws-server.ts`
     - Accept WebSocket connections on `/ws`
     - Create session context per connection (Transcribe stream, Mastra session, Polly stream)
