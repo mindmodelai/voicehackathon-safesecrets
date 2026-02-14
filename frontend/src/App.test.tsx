@@ -27,7 +27,7 @@ vi.mock('./ws-client', () => ({
   },
 }));
 
-const mockStartCapture = vi.fn();
+const mockStartCapture = vi.fn().mockResolvedValue(undefined);
 const mockStopCapture = vi.fn();
 const mockPlayAudioChunk = vi.fn();
 const mockStopPlayback = vi.fn();

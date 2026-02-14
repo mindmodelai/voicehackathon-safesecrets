@@ -8,53 +8,19 @@ function createMockMediaStream() {
   return { getTracks: () => [track], _track: track } as unknown as MediaStream;
 }
 
-function createMockMediaRecorder() {
-  let _state: 'inactive' | 'recording' | 'paused' = 'inactive';
-  const instance = {
-    get state() { return _state; },
-    start: vi.fn((_timeslice?: number) => { _state = 'recording'; }),
-    stop: vi.fn(() => { _state = 'inactive'; }),
-    ondataavailable: null as ((e: BlobEvent) => void) | null,
+function createMockScriptProcessor() {
+  return {
+    onaudioprocess: null as ((e: AudioProcessingEvent) => void) | null,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
   };
-  return instance;
 }
 
-/** Fires ondataavailable with a mock Blob of the given size */
-function fireDataAvailable(recorder: ReturnType<typeof createMockMediaRecorder>, size: number) {
-  const buf = new ArrayBuffer(size);
-  const blob = {
-    size,
-    arrayBuffer: () => Promise.resolve(buf),
+function createMockSourceNode() {
+  return {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
   };
-  recorder.ondataavailable?.({ data: blob } as unknown as BlobEvent);
-}
-
-function createMockAudioContext() {
-  const sources: MockSourceNode[] = [];
-
-  const ctx = {
-    state: 'running' as AudioContextState,
-    currentTime: 0,
-    destination: {} as AudioDestinationNode,
-    resume: vi.fn(async () => {}),
-    decodeAudioData: vi.fn(async (_buf: ArrayBuffer) => ({
-      duration: 1.0,
-    })) as unknown as AudioContext['decodeAudioData'],
-    createBufferSource: vi.fn(() => {
-      const source: MockSourceNode = {
-        buffer: null,
-        connect: vi.fn(),
-        start: vi.fn(),
-        stop: vi.fn(),
-        onended: null as (() => void) | null,
-      };
-      sources.push(source);
-      return source as unknown as AudioBufferSourceNode;
-    }),
-    _sources: sources,
-  };
-
-  return ctx;
 }
 
 type MockSourceNode = {
@@ -65,43 +31,83 @@ type MockSourceNode = {
   onended: (() => void) | null;
 };
 
+/**
+ * Creates a mock AudioContext that supports both capture and playback APIs.
+ * Each call to createFullMockContext() returns a fresh instance.
+ */
+function createFullMockContext(
+  scriptProcessor: ReturnType<typeof createMockScriptProcessor>,
+  sourceNode: ReturnType<typeof createMockSourceNode>,
+) {
+  const bufferSources: MockSourceNode[] = [];
+  const channelData = new Float32Array(128);
+  const mockAudioBuffer = {
+    duration: 0.5,
+    getChannelData: vi.fn(() => channelData),
+  };
+
+  return {
+    // Capture APIs
+    sampleRate: 16000,
+    destination: {} as AudioDestinationNode,
+    createMediaStreamSource: vi.fn(() => sourceNode),
+    createScriptProcessor: vi.fn(() => scriptProcessor),
+    close: vi.fn(),
+    // Playback APIs
+    state: 'running' as AudioContextState,
+    currentTime: 0,
+    resume: vi.fn(async () => {}),
+    createBuffer: vi.fn(() => mockAudioBuffer),
+    createBufferSource: vi.fn(() => {
+      const src: MockSourceNode = {
+        buffer: null,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        onended: null,
+      };
+      bufferSources.push(src);
+      return src as unknown as AudioBufferSourceNode;
+    }),
+    _sources: bufferSources,
+  };
+}
+
+/** Simulates an onaudioprocess event */
+function fireAudioProcess(sp: ReturnType<typeof createMockScriptProcessor>, length: number) {
+  sp.onaudioprocess?.({
+    inputBuffer: { getChannelData: () => new Float32Array(length) },
+  } as unknown as AudioProcessingEvent);
+}
+
 // ── Tests ──────────────────────────────────────────────────
 
 describe('AudioManager', () => {
   let manager: AudioManagerImpl;
   let mockStream: MediaStream;
-  let mockRecorder: ReturnType<typeof createMockMediaRecorder>;
-  let mockAudioCtx: ReturnType<typeof createMockAudioContext>;
+  let mockSP: ReturnType<typeof createMockScriptProcessor>;
+  let mockSrcNode: ReturnType<typeof createMockSourceNode>;
+  let mockCtx: ReturnType<typeof createFullMockContext>;
 
   beforeEach(() => {
     manager = new AudioManagerImpl();
     mockStream = createMockMediaStream();
-    mockRecorder = createMockMediaRecorder();
-    mockAudioCtx = createMockAudioContext();
+    mockSP = createMockScriptProcessor();
+    mockSrcNode = createMockSourceNode();
+    mockCtx = createFullMockContext(mockSP, mockSrcNode);
 
-    // Stub navigator.mediaDevices.getUserMedia
     vi.stubGlobal('navigator', {
-      mediaDevices: {
-        getUserMedia: vi.fn(async () => mockStream),
-      },
+      mediaDevices: { getUserMedia: vi.fn(async () => mockStream) },
     });
-
-    // Stub MediaRecorder constructor
-    vi.stubGlobal('MediaRecorder', vi.fn(() => mockRecorder));
-
-    // Stub AudioContext constructor
-    vi.stubGlobal('AudioContext', vi.fn(() => mockAudioCtx));
+    vi.stubGlobal('AudioContext', vi.fn(() => mockCtx));
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  // ── Factory ──
-
   it('createAudioManager returns an AudioManagerImpl', () => {
-    const am = createAudioManager();
-    expect(am).toBeInstanceOf(AudioManagerImpl);
+    expect(createAudioManager()).toBeInstanceOf(AudioManagerImpl);
   });
 
   // ── Capture ──
@@ -109,51 +115,43 @@ describe('AudioManager', () => {
   describe('startCapture', () => {
     it('requests microphone access', async () => {
       await manager.startCapture(vi.fn());
-      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(
+        expect.objectContaining({ audio: expect.objectContaining({ channelCount: 1 }) }),
+      );
     });
 
-    it('starts MediaRecorder with 250ms timeslice', async () => {
+    it('creates ScriptProcessorNode and connects source', async () => {
       await manager.startCapture(vi.fn());
-      expect(mockRecorder.start).toHaveBeenCalledWith(250);
+      expect(mockCtx.createMediaStreamSource).toHaveBeenCalled();
+      expect(mockCtx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+      expect(mockSrcNode.connect).toHaveBeenCalled();
+      expect(mockSP.connect).toHaveBeenCalledWith(mockCtx.destination);
     });
 
-    it('forwards audio chunks via onChunk callback', async () => {
+    it('forwards PCM audio chunks via onChunk callback', async () => {
       const onChunk = vi.fn();
       await manager.startCapture(onChunk);
-
-      // Simulate data available
-      fireDataAvailable(mockRecorder, 1024);
-
-      // onChunk is called asynchronously (blob.arrayBuffer())
-      await vi.waitFor(() => expect(onChunk).toHaveBeenCalledTimes(1));
+      fireAudioProcess(mockSP, 128);
+      expect(onChunk).toHaveBeenCalledTimes(1);
       expect(onChunk).toHaveBeenCalledWith(expect.any(ArrayBuffer));
-    });
-
-    it('ignores zero-size blobs', async () => {
-      const onChunk = vi.fn();
-      await manager.startCapture(onChunk);
-
-      fireDataAvailable(mockRecorder, 0);
-
-      // Give the promise a tick to resolve (it shouldn't)
-      await new Promise((r) => setTimeout(r, 10));
-      expect(onChunk).not.toHaveBeenCalled();
+      // 128 samples * 2 bytes = 256 bytes PCM
+      expect(onChunk.mock.calls[0][0].byteLength).toBe(256);
     });
 
     it('does nothing if already capturing', async () => {
       await manager.startCapture(vi.fn());
       await manager.startCapture(vi.fn());
-      // getUserMedia should only be called once
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('stopCapture', () => {
-    it('stops the MediaRecorder and media tracks', async () => {
+    it('disconnects processor, source, closes context, and stops tracks', async () => {
       await manager.startCapture(vi.fn());
       manager.stopCapture();
-
-      expect(mockRecorder.stop).toHaveBeenCalled();
+      expect(mockSP.disconnect).toHaveBeenCalled();
+      expect(mockSrcNode.disconnect).toHaveBeenCalled();
+      expect(mockCtx.close).toHaveBeenCalled();
       expect((mockStream as any)._track.stop).toHaveBeenCalled();
     });
 
@@ -174,135 +172,106 @@ describe('AudioManager', () => {
   describe('playAudioChunk', () => {
     it('creates an AudioContext on first call', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
-      expect(AudioContext).toHaveBeenCalledTimes(1);
+      expect(AudioContext).toHaveBeenCalled();
     });
 
     it('reuses the same AudioContext on subsequent calls', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
       manager.playAudioChunk(new ArrayBuffer(16));
+      // Only 1 call for playback context
       expect(AudioContext).toHaveBeenCalledTimes(1);
     });
 
-    it('decodes audio data and schedules playback', async () => {
-      manager.playAudioChunk(new ArrayBuffer(16));
+    it('decodes raw PCM and schedules playback', () => {
+      const chunk = new ArrayBuffer(8); // 4 Int16 samples
+      manager.playAudioChunk(chunk);
 
-      // decodeAudioData is async — wait for the source to be created
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(1));
-
-      const source = mockAudioCtx._sources[0];
-      expect(source.connect).toHaveBeenCalledWith(mockAudioCtx.destination);
+      expect(mockCtx.createBuffer).toHaveBeenCalledWith(1, 4, 16000);
+      expect(mockCtx._sources.length).toBe(1);
+      const source = mockCtx._sources[0];
+      expect(source.connect).toHaveBeenCalledWith(mockCtx.destination);
       expect(source.start).toHaveBeenCalled();
     });
 
-    it('sets isPlaying to true after scheduling', async () => {
+    it('sets isPlaying to true after scheduling', () => {
       expect(manager.isPlaying()).toBe(false);
       manager.playAudioChunk(new ArrayBuffer(16));
-
-      await vi.waitFor(() => expect(manager.isPlaying()).toBe(true));
+      expect(manager.isPlaying()).toBe(true);
     });
 
-    it('sets isPlaying to false when all sources end', async () => {
+    it('sets isPlaying to false when all sources end', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
-
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(1));
-
-      // Simulate source ending
-      mockAudioCtx._sources[0].onended?.();
+      expect(mockCtx._sources.length).toBe(1);
+      mockCtx._sources[0].onended?.();
       expect(manager.isPlaying()).toBe(false);
     });
 
-    it('resumes suspended AudioContext', async () => {
-      mockAudioCtx.state = 'suspended' as AudioContextState;
+    it('resumes suspended AudioContext', () => {
+      mockCtx.state = 'suspended' as AudioContextState;
       manager.playAudioChunk(new ArrayBuffer(16));
-
-      expect(mockAudioCtx.resume).toHaveBeenCalled();
+      expect(mockCtx.resume).toHaveBeenCalled();
     });
 
-    it('schedules chunks sequentially without overlap', async () => {
-      mockAudioCtx.currentTime = 0;
-
+    it('schedules chunks sequentially without overlap', () => {
+      mockCtx.currentTime = 0;
       manager.playAudioChunk(new ArrayBuffer(16));
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(1));
-
+      expect(mockCtx._sources.length).toBe(1);
       manager.playAudioChunk(new ArrayBuffer(16));
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(2));
-
-      // First chunk starts at 0, second at 0 + 1.0 (duration)
-      expect(mockAudioCtx._sources[0].start).toHaveBeenCalledWith(0);
-      expect(mockAudioCtx._sources[1].start).toHaveBeenCalledWith(1.0);
+      expect(mockCtx._sources.length).toBe(2);
+      expect(mockCtx._sources[0].start).toHaveBeenCalledWith(0);
+      expect(mockCtx._sources[1].start).toHaveBeenCalledWith(0.5);
     });
   });
 
   describe('stopPlayback', () => {
-    it('stops all active source nodes immediately', async () => {
+    it('stops all active source nodes immediately', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
       manager.playAudioChunk(new ArrayBuffer(16));
-
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(2));
-
+      expect(mockCtx._sources.length).toBe(2);
       manager.stopPlayback();
-
-      expect(mockAudioCtx._sources[0].stop).toHaveBeenCalled();
-      expect(mockAudioCtx._sources[1].stop).toHaveBeenCalled();
+      expect(mockCtx._sources[0].stop).toHaveBeenCalled();
+      expect(mockCtx._sources[1].stop).toHaveBeenCalled();
     });
 
-    it('sets isPlaying to false', async () => {
+    it('sets isPlaying to false', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
-      await vi.waitFor(() => expect(manager.isPlaying()).toBe(true));
-
+      expect(manager.isPlaying()).toBe(true);
       manager.stopPlayback();
       expect(manager.isPlaying()).toBe(false);
     });
 
-    it('resets scheduled time so next chunk starts fresh', async () => {
+    it('resets scheduled time so next chunk starts fresh', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(1));
-
       manager.stopPlayback();
-
-      // Next chunk should start at currentTime, not at the old scheduledTime
-      mockAudioCtx.currentTime = 5;
+      mockCtx.currentTime = 5;
       manager.playAudioChunk(new ArrayBuffer(16));
-
-      // _sources accumulates across the mock — first call added 1, now we expect 2
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(2));
-
-      // The new source (index 1) should start at currentTime (5), not at old scheduled time
-      expect(mockAudioCtx._sources[1].start).toHaveBeenCalledWith(5);
+      expect(mockCtx._sources.length).toBe(2);
+      expect(mockCtx._sources[1].start).toHaveBeenCalledWith(5);
     });
 
     it('is safe to call when nothing is playing', () => {
       expect(() => manager.stopPlayback()).not.toThrow();
     });
 
-    it('handles sources that are already stopped', async () => {
+    it('handles sources that are already stopped', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
-      await vi.waitFor(() => expect(mockAudioCtx._sources.length).toBe(1));
-
-      // Make stop throw (simulating already-stopped source)
-      mockAudioCtx._sources[0].stop.mockImplementation(() => {
-        throw new Error('already stopped');
-      });
-
+      mockCtx._sources[0].stop.mockImplementation(() => { throw new Error('already stopped'); });
       expect(() => manager.stopPlayback()).not.toThrow();
     });
   });
-
-  // ── isPlaying ──
 
   describe('isPlaying', () => {
     it('returns false initially', () => {
       expect(manager.isPlaying()).toBe(false);
     });
 
-    it('returns true while sources are active', async () => {
+    it('returns true while sources are active', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
-      await vi.waitFor(() => expect(manager.isPlaying()).toBe(true));
+      expect(manager.isPlaying()).toBe(true);
     });
 
-    it('returns false after stopPlayback', async () => {
+    it('returns false after stopPlayback', () => {
       manager.playAudioChunk(new ArrayBuffer(16));
-      await vi.waitFor(() => expect(manager.isPlaying()).toBe(true));
       manager.stopPlayback();
       expect(manager.isPlaying()).toBe(false);
     });
