@@ -370,15 +370,23 @@ export class SafeSecretsWSServer {
 
     sendMessage(session.ws, { type: 'event', event: 'tts.start' });
 
+    let chunkCount = 0;
+    let totalBytes = 0;
+
     try {
       await session.pollyAdapter.synthesize(text, (chunk: Buffer) => {
         if (session.isActive && session.ws.readyState === WebSocket.OPEN) {
+          chunkCount++;
+          totalBytes += chunk.byteLength;
+          console.log(`[WSServer] TTS chunk #${chunkCount}: ${chunk.byteLength} bytes (total: ${totalBytes})`);
+
           sendMessage(session.ws, {
             type: 'audio',
             payload: { data: chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer },
           });
         }
       });
+      console.log(`[WSServer] TTS complete: ${chunkCount} chunks, ${totalBytes} total bytes`);
     } catch (err) {
       console.error(`[WSServer] TTS error for session ${session.sessionId}:`, err);
     } finally {
