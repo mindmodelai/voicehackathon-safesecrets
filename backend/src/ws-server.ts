@@ -273,6 +273,12 @@ export class SafeSecretsWSServer {
           if (!speakingNotified) {
             sendMessage(ws, { type: 'event', event: 'user_speaking_start' });
             speakingNotified = true;
+
+            // Barge-in: if Polly is currently synthesizing, stop it immediately
+            if (pollyAdapter.isSynthesizing()) {
+              pollyAdapter.stop();
+              sendMessage(ws, { type: 'event', event: 'tts.end' });
+            }
           }
           sendMessage(ws, { type: 'event', event: 'partial_transcript', data: { text } });
         },
