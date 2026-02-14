@@ -4,7 +4,7 @@ inclusion: auto
 
 # Git Branching Workflow for Spec Tasks
 
-When executing tasks from `.kiro/specs/valentines-voice-ai/tasks.md`, follow this git workflow for every top-level task (e.g., Task 1, Task 2, etc.):
+When executing tasks from `.kiro/specs/safesecrets/tasks.md`, follow this git workflow for every top-level task (e.g., Task 1, Task 2, etc.):
 
 ## Before Starting a Task
 
