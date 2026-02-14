@@ -6,8 +6,8 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
 
 ## Tasks
 
-- [ ] 1. Project scaffolding and shared types
-  - [ ] 1.1 Initialize monorepo with backend and frontend packages
+- [x] 1. Project scaffolding and shared types
+  - [x] 1.1 Initialize monorepo with backend and frontend packages
     - Create `backend/` (Node/TypeScript) and `frontend/` (React/TypeScript) directories
     - Set up `package.json` for each with TypeScript, Vitest, and fast-check
     - Install Mastra SDK: `@mastra/core`, `@mastra/voice`, `@ai-sdk/amazon-bedrock`
@@ -15,7 +15,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Install WebSocket library: `ws` for backend, native WebSocket for frontend
     - _Requirements: 8.1_
 
-  - [ ] 1.2 Define shared TypeScript types and interfaces
+  - [x] 1.2 Define shared TypeScript types and interfaces
     - Create `shared/types.ts` with: `StructuredOutput`, `ClientMessage`, `ServerMessage`, `RefinementRequest`, `WorkflowStage`, `ConversationContext`, `AvatarState`, `SpeakingStyle`, `AvatarEvent`
     - Create `shared/schema.ts` with the JSON schema for StructuredOutput validation
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
@@ -26,7 +26,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - **Validates: Requirements 3.3, 7.2, 7.3, 7.4, 7.5, 7.6**
 
 - [ ] 2. Avatar state machine
-  - [ ] 2.1 Implement the Avatar State Machine
+  - [~] 2.1 Implement the Avatar State Machine
     - Create `frontend/src/avatar-state-machine.ts`
     - Implement state transitions with priority order: listening > speaking > thinking > idle
     - Implement `getVideoSource()` that returns the correct video path based on current state and style
@@ -43,11 +43,11 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Generate random valid style values, verify correct video source path is returned
     - **Validates: Requirements 5.4**
 
-- [ ] 3. Checkpoint - Ensure all tests pass
+- [~] 3. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 4. Backend AWS adapters
-  - [ ] 4.1 Implement the Transcribe Adapter
+  - [~] 4.1 Implement the Transcribe Adapter
     - Create `backend/src/transcribe-adapter.ts`
     - Implement `startStream()`, `feedAudio()`, `stopStream()` wrapping `@aws-sdk/client-transcribe-streaming`
     - Pin region to `ca-central-1`
@@ -55,7 +55,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Handle Transcribe errors and propagate them
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 8.1_
 
-  - [ ] 4.2 Implement the Bedrock Adapter
+  - [~] 4.2 Implement the Bedrock Adapter
     - Create `backend/src/bedrock-adapter.ts`
     - Implement `generateStructuredResponse()` wrapping `@aws-sdk/client-bedrock-runtime`
     - Pin region to `ca-central-1`
@@ -64,7 +64,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Implement retry-once logic for invalid responses
     - _Requirements: 3.3, 7.1, 7.2, 8.1_
 
-  - [ ] 4.3 Implement the Polly Adapter
+  - [~] 4.3 Implement the Polly Adapter
     - Create `backend/src/polly-adapter.ts`
     - Implement `synthesize()` and `stop()` wrapping `@aws-sdk/client-polly`
     - Pin region to `ca-central-1`
@@ -80,7 +80,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - _Requirements: 2.5, 3.6, 4.5, 8.1, 8.4_
 
 - [ ] 5. Custom Mastra Voice Provider and Workflow
-  - [ ] 5.1 Implement the Custom Mastra Voice Provider
+  - [~] 5.1 Implement the Custom Mastra Voice Provider
     - Create `backend/src/custom-voice-provider.ts`
     - Extend `MastraVoice` from `@mastra/voice`
     - Implement `listen()` wrapping the Transcribe Adapter
@@ -88,7 +88,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Pin both to ca-central-1
     - _Requirements: 2.1, 4.1, 8.1_
 
-  - [ ] 5.2 Implement the Mastra Workflow Engine
+  - [~] 5.2 Implement the Mastra Workflow Engine
     - Create `backend/src/mastra-workflow.ts`
     - Configure the Mastra Agent with `@ai-sdk/amazon-bedrock` provider pinned to ca-central-1
     - Define `collectStep`, `composeStep`, `refineStep` using `createStep`
@@ -119,11 +119,11 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Generate random contexts and refinement requests, verify non-draft fields unchanged
     - **Validates: Requirements 3.5**
 
-- [ ] 6. Checkpoint - Ensure all tests pass
+- [~] 6. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. WebSocket Server
-  - [ ] 7.1 Implement the WebSocket Server
+  - [~] 7.1 Implement the WebSocket Server
     - Create `backend/src/ws-server.ts`
     - Accept WebSocket connections on `/ws`
     - Create session context per connection (Transcribe stream, Mastra session, Polly stream)
@@ -145,7 +145,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - _Requirements: 1.1, 1.4, 1.5_
 
 - [ ] 8. Frontend - Artifact Panel
-  - [ ] 8.1 Implement the Artifact Panel component
+  - [~] 8.1 Implement the Artifact Panel component
     - Create `frontend/src/components/ArtifactPanel.tsx`
     - Render styled notepad with note draft text, tags, and tone label
     - Implement Copy button with clipboard API
@@ -164,28 +164,28 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - **Validates: Requirements 6.5**
 
 - [ ] 9. Frontend - Avatar and main layout
-  - [ ] 9.1 Implement the 3D Heart Avatar component
+  - [~] 9.1 Implement the 3D Heart Avatar component
     - Create `frontend/src/components/HeartAvatar.tsx`
     - Render video element that switches source based on AvatarState and SpeakingStyle
     - Wire to Avatar State Machine for state-driven video switching
     - Include idle ambient loop, listening glow, thinking shimmer, and 3 speaking variants
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [ ] 9.2 Implement the Audio Manager
+  - [~] 9.2 Implement the Audio Manager
     - Create `frontend/src/audio-manager.ts`
     - Implement `startCapture()` using MediaRecorder/AudioWorklet for microphone input
     - Implement `playAudioChunk()` for streaming TTS audio playback
     - Implement `stopPlayback()` for barge-in cancellation
     - _Requirements: 4.5_
 
-  - [ ] 9.3 Implement the WebSocket Client
+  - [~] 9.3 Implement the WebSocket Client
     - Create `frontend/src/ws-client.ts`
     - Connect to backend `/ws` endpoint
     - Send audio chunks and control messages
     - Parse incoming ServerMessages and dispatch to event handlers
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [ ] 9.4 Implement the main App layout
+  - [~] 9.4 Implement the main App layout
     - Create `frontend/src/App.tsx` with two-panel layout
     - Left panel: HeartAvatar component
     - Right panel: ArtifactPanel component
@@ -194,14 +194,14 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - _Requirements: 9.1, 9.2, 9.4, 9.5_
 
 - [ ] 10. Integration and wiring
-  - [ ] 10.1 Wire the full voice pipeline end-to-end
+  - [~] 10.1 Wire the full voice pipeline end-to-end
     - Connect: Mic → WebSocket → Transcribe → Mastra Workflow → Bedrock → Polly → Audio playback
     - Ensure avatar state transitions fire correctly through the full flow
     - Ensure artifact panel updates on compose and refine stages
     - Implement barge-in: user speaking stops TTS and transitions avatar to listening
     - _Requirements: 1.3, 2.1, 3.4, 4.1, 4.5, 5.5, 9.2, 9.4, 9.5_
 
-  - [ ] 10.2 Implement error handling and region enforcement
+  - [~] 10.2 Implement error handling and region enforcement
     - Verify all AWS clients are pinned to ca-central-1 with no fallback
     - Implement graceful error messages for service failures
     - Implement connection timeout cleanup (5 min idle)
@@ -213,7 +213,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Test error recovery paths
     - _Requirements: 9.2, 9.4, 9.5_
 
-- [ ] 11. Final checkpoint - Ensure all tests pass
+- [~] 11. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
