@@ -1,0 +1,29 @@
+{
+  "name": "safesecrets-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@mastra/core": "latest",
+    "@ai-sdk/amazon-bedrock": "latest",
+    "@aws-sdk/client-transcribe-streaming": "latest",
+    "@aws-sdk/client-polly": "latest",
+    "@aws-sdk/client-bedrock-runtime": "latest",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.10",
+    "fast-check": "^3.15.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Auto Proceed",
+  "description": "When the agent says it is ready to proceed, automatically tells it to proceed.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "If your last message indicated you are ready to proceed or asked for permission to proceed, then proceed with the next step. If you were not waiting to proceed, do nothing."
+  }
+}
