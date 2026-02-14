@@ -238,159 +238,209 @@ Loop must be perfectly seamless.
 
 ---
 
-# 5) 🎬 PHONEME TRANSITION: MBP (Closed)
+# 4b) 💬 GENERAL SPEAKING VIDEO (Conversational)
 
-**Purpose:** Short transition clip that starts with MBP mouth shape and ends matching the first frame of the main speaking loop.
+**Purpose:** Longer speaking video with continuous happy, excited talking animation. Use for general conversation or when you need extended speaking footage.
 
 ```
 Use the exact same 3D heart character from the reference image. Do not redesign. Same proportions, same face, same lighting, same camera, same size, same arms, same glossy red material. Pure white background. Centered. Front facing. No camera movement. MATCH REFERENCE EXACTLY.
 
-Generate a 0.5 second transition video.
+Character constraints:
+- NO legs.
+- NO feet.
+- NO shadows.
+
+Expression and Emotion:
+- ALWAYS happy and excited expression.
+- Bright, enthusiastic energy throughout.
+- NO frowning, NO sad emotions, NO neutral face.
+- Eyes wide and engaged, looking directly at camera.
+- Friendly, welcoming demeanor.
+
+Mouth Animation:
+- Continuous talking motion with NO pauses.
+- Mouth opens and closes naturally as if speaking enthusiastically.
+- Varied mouth shapes showing different phonemes.
+- Natural lip-sync motion as if saying:
+  "Hi there! I'm so excited to help you today! Let me tell you all about how amazing this is going to be! We're going to have such a great time working together!"
+
+Body Animation:
+- Energetic rhythmic bounce as if excitedly explaining.
+- Arms move expressively as if gesturing while talking.
+- Slight forward lean showing engagement.
+- No head rotation.
+- No translation.
+
+The character should feel like they're having an enthusiastic, positive conversation with the viewer.
+```
+
+---
+
+# 5) 🎬 PHONEME TRANSITION: MBP (Closed)
+
+**Purpose:** Short transition clip that starts with MBP mouth shape and flows into natural speaking animation.
+
+```
+Use the exact same 3D heart character from the reference image. Do not redesign. Same proportions, same face, same lighting, same camera, same size, same arms, same glossy red material. Pure white background. Centered. Front facing. No camera movement. MATCH REFERENCE EXACTLY.
 
 First frame mouth shape:
 - Fully closed lips pressed together (M/B/P sound).
 - Friendly expression.
 
-Last frame mouth shape:
-- Neutral closed position (matching speaking loop start).
+Speaking Script (character lip-syncs to this):
+"Maybe we can build something amazing together! I'm so pumped about all the possibilities we have!"
 
 Animation:
-- Smooth transition from MBP to neutral.
-- Minimal body movement.
-- Arms in relaxed speaking position.
+- Start with MBP mouth shape (closed lips).
+- Mouth opens and closes naturally as if speaking the script above.
+- Natural talking motion with varied mouth shapes matching the words.
+- Gentle rhythmic bounce as if explaining.
+- Arms move slightly in relaxed speaking position.
 - Eyes look directly at camera.
 - No head rotation.
+
+Loop must flow seamlessly into continuous speaking animation.
 ```
 
 ---
 
 # 6) 🎬 PHONEME TRANSITION: TDNL (Small Open)
 
-**Purpose:** Short transition clip that starts with TDNL mouth shape and ends matching the first frame of the main speaking loop.
+**Purpose:** Short transition clip that starts with TDNL mouth shape and flows into natural speaking animation.
 
 ```
 Use the exact same 3D heart character from the reference image. Do not redesign. Same proportions, same face, same lighting, same camera, same size, same arms, same glossy red material. Pure white background. Centered. Front facing. No camera movement. MATCH REFERENCE EXACTLY.
-
-Generate a 0.5 second transition video.
 
 First frame mouth shape:
 - Slightly open small oval (T/D/N/L sound).
 - Tongue position suggested.
 
-Last frame mouth shape:
-- Neutral closed position (matching speaking loop start).
+Speaking Script (character lip-syncs to this):
+"Today is going to be totally awesome! Let me tell you all about the incredible things we're going to do!"
 
 Animation:
-- Smooth transition from TDNL to neutral.
-- Minimal body movement.
-- Arms in relaxed speaking position.
+- Start with TDNL mouth shape (small open oval).
+- Mouth opens and closes naturally as if speaking the script above.
+- Natural talking motion with varied mouth shapes matching the words.
+- Gentle rhythmic bounce as if explaining.
+- Arms move slightly in relaxed speaking position.
 - Eyes look directly at camera.
 - No head rotation.
+
+Loop must flow seamlessly into continuous speaking animation.
 ```
 
 ---
 
 # 7) 🎬 PHONEME TRANSITION: AHAA (Wide Open)
 
-**Purpose:** Short transition clip that starts with AHAA mouth shape and ends matching the first frame of the main speaking loop.
+**Purpose:** Short transition clip that starts with AHAA mouth shape and flows into natural speaking animation.
 
 ```
 Use the exact same 3D heart character from the reference image. Do not redesign. Same proportions, same face, same lighting, same camera, same size, same arms, same glossy red material. Pure white background. Centered. Front facing. No camera movement. MATCH REFERENCE EXACTLY.
-
-Generate a 0.5 second transition video.
 
 First frame mouth shape:
 - Wide open vertical oval (AH/AA sound).
 - Friendly expression.
 
-Last frame mouth shape:
-- Neutral closed position (matching speaking loop start).
+Speaking Script (character lip-syncs to this):
+"Awesome! I'm absolutely thrilled to share all these amazing ideas with you right now!"
 
 Animation:
-- Smooth transition from AHAA to neutral.
-- Minimal body movement.
-- Arms in relaxed speaking position.
+- Start with AHAA mouth shape (wide open).
+- Mouth opens and closes naturally as if speaking the script above.
+- Natural talking motion with varied mouth shapes matching the words.
+- Gentle rhythmic bounce as if explaining.
+- Arms move slightly in relaxed speaking position.
 - Eyes look directly at camera.
 - No head rotation.
+
+Loop must flow seamlessly into continuous speaking animation.
 ```
 
 ---
 
 # 8) 🎬 PHONEME TRANSITION: OUW (Rounded)
 
-**Purpose:** Short transition clip that starts with OUW mouth shape and ends matching the first frame of the main speaking loop.
+**Purpose:** Short transition clip that starts with OUW mouth shape and flows into natural speaking animation.
 
 ```
 Use the exact same 3D heart character from the reference image. Do not redesign. Same proportions, same face, same lighting, same camera, same size, same arms, same glossy red material. Pure white background. Centered. Front facing. No camera movement. MATCH REFERENCE EXACTLY.
-
-Generate a 0.5 second transition video.
 
 First frame mouth shape:
 - Small round O shape (O/U/W sound).
 - Lips pursed forward slightly.
 
-Last frame mouth shape:
-- Neutral closed position (matching speaking loop start).
+Speaking Script (character lip-syncs to this):
+"Ooh, you're going to love what we can do together! This is going to be so wonderful and useful!"
 
 Animation:
-- Smooth transition from OUW to neutral.
-- Minimal body movement.
-- Arms in relaxed speaking position.
+- Start with OUW mouth shape (rounded O).
+- Mouth opens and closes naturally as if speaking the script above.
+- Natural talking motion with varied mouth shapes matching the words.
+- Gentle rhythmic bounce as if explaining.
+- Arms move slightly in relaxed speaking position.
 - Eyes look directly at camera.
 - No head rotation.
+
+Loop must flow seamlessly into continuous speaking animation.
 ```
 
 ---
 
 # 9) 🎬 PHONEME TRANSITION: EE (Smile Spread)
 
-**Purpose:** Short transition clip that starts with EE mouth shape and ends matching the first frame of the main speaking loop.
+**Purpose:** Short transition clip that starts with EE mouth shape and flows into natural speaking animation.
 
 ```
 Use the exact same 3D heart character from the reference image. Do not redesign. Same proportions, same face, same lighting, same camera, same size, same arms, same glossy red material. Pure white background. Centered. Front facing. No camera movement. MATCH REFERENCE EXACTLY.
-
-Generate a 0.5 second transition video.
 
 First frame mouth shape:
 - Wide horizontal smile shape (EE sound).
 - Slightly open.
 - Corners pulled back.
 
-Last frame mouth shape:
-- Neutral closed position (matching speaking loop start).
+Speaking Script (character lip-syncs to this):
+"Easy! We can achieve anything together! I really believe in what we're creating here!"
 
 Animation:
-- Smooth transition from EE to neutral.
-- Minimal body movement.
-- Arms in relaxed speaking position.
+- Start with EE mouth shape (wide smile).
+- Mouth opens and closes naturally as if speaking the script above.
+- Natural talking motion with varied mouth shapes matching the words.
+- Gentle rhythmic bounce as if explaining.
+- Arms move slightly in relaxed speaking position.
 - Eyes look directly at camera.
 - No head rotation.
+
+Loop must flow seamlessly into continuous speaking animation.
 ```
 
 ---
 
 # 10) 🎬 PHONEME TRANSITION: FV (Teeth/Lip Contact)
 
-**Purpose:** Short transition clip that starts with FV mouth shape and ends matching the first frame of the main speaking loop.
+**Purpose:** Short transition clip that starts with FV mouth shape and flows into natural speaking animation.
 
 ```
 Use the exact same 3D heart character from the reference image. Do not redesign. Same proportions, same face, same lighting, same camera, same size, same arms, same glossy red material. Pure white background. Centered. Front facing. No camera movement. MATCH REFERENCE EXACTLY.
-
-Generate a 0.5 second transition video.
 
 First frame mouth shape:
 - Top teeth visible touching lower lip (F/V sound).
 - Simple cartoon style.
 
-Last frame mouth shape:
-- Neutral closed position (matching speaking loop start).
+Speaking Script (character lip-syncs to this):
+"Fantastic! I feel very excited about everything we're going to accomplish together today!"
 
 Animation:
-- Smooth transition from FV to neutral.
-- Minimal body movement.
-- Arms in relaxed speaking position.
+- Start with FV mouth shape (teeth on lip).
+- Mouth opens and closes naturally as if speaking the script above.
+- Natural talking motion with varied mouth shapes matching the words.
+- Gentle rhythmic bounce as if explaining.
+- Arms move slightly in relaxed speaking position.
 - Eyes look directly at camera.
 - No head rotation.
+
+Loop must flow seamlessly into continuous speaking animation.
 ```
 
 ---
