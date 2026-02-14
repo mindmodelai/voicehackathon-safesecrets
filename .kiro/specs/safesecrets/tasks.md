@@ -25,8 +25,8 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Generate random JSON objects (valid and invalid), verify the validator accepts valid StructuredOutput and rejects invalid ones
     - **Validates: Requirements 3.3, 7.2, 7.3, 7.4, 7.5, 7.6**
 
-- [ ] 2. Avatar state machine
-  - [~] 2.1 Implement the Avatar State Machine
+- [x] 2. Avatar state machine
+  - [x] 2.1 Implement the Avatar State Machine
     - Create `frontend/src/avatar-state-machine.ts`
     - Implement state transitions with priority order: listening > speaking > thinking > idle
     - Implement `getVideoSource()` that returns the correct video path based on current state and style
@@ -43,11 +43,11 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Generate random valid style values, verify correct video source path is returned
     - **Validates: Requirements 5.4**
 
-- [~] 3. Checkpoint - Ensure all tests pass
+- [x] 3. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Backend AWS adapters
-  - [~] 4.1 Implement the Transcribe Adapter
+- [x] 4. Backend AWS adapters
+  - [x] 4.1 Implement the Transcribe Adapter
     - Create `backend/src/transcribe-adapter.ts`
     - Implement `startStream()`, `feedAudio()`, `stopStream()` wrapping `@aws-sdk/client-transcribe-streaming`
     - Pin region to `ca-central-1`
@@ -55,7 +55,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Handle Transcribe errors and propagate them
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 8.1_
 
-  - [~] 4.2 Implement the Bedrock Adapter
+  - [x] 4.2 Implement the Bedrock Adapter
     - Create `backend/src/bedrock-adapter.ts`
     - Implement `generateStructuredResponse()` wrapping `@aws-sdk/client-bedrock-runtime`
     - Pin region to `ca-central-1`
@@ -64,7 +64,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Implement retry-once logic for invalid responses
     - _Requirements: 3.3, 7.1, 7.2, 8.1_
 
-  - [~] 4.3 Implement the Polly Adapter
+  - [x] 4.3 Implement the Polly Adapter
     - Create `backend/src/polly-adapter.ts`
     - Implement `synthesize()` and `stop()` wrapping `@aws-sdk/client-polly`
     - Pin region to `ca-central-1`
