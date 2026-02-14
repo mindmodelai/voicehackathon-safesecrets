@@ -79,8 +79,8 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Test Transcribe adapter error propagation
     - _Requirements: 2.5, 3.6, 4.5, 8.1, 8.4_
 
-- [ ] 5. Custom Mastra Voice Provider and Workflow
-  - [~] 5.1 Implement the Custom Mastra Voice Provider
+- [x] 5. Custom Mastra Voice Provider and Workflow
+  - [x] 5.1 Implement the Custom Mastra Voice Provider
     - Create `backend/src/custom-voice-provider.ts`
     - Extend `MastraVoice` from `@mastra/voice`
     - Implement `listen()` wrapping the Transcribe Adapter
@@ -88,7 +88,7 @@ Incremental implementation of the SafeSecrets voice-first Valentine assistant. T
     - Pin both to ca-central-1
     - _Requirements: 2.1, 4.1, 8.1_
 
-  - [~] 5.2 Implement the Mastra Workflow Engine
+  - [x] 5.2 Implement the Mastra Workflow Engine
     - Create `backend/src/mastra-workflow.ts`
     - Configure the Mastra Agent with `@ai-sdk/amazon-bedrock` provider pinned to ca-central-1
     - Define `collectStep`, `composeStep`, `refineStep` using `createStep`
