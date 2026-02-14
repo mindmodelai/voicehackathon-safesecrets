@@ -6,7 +6,7 @@
  * ServerMessages to registered event handlers.
  */
 
-import type { ClientMessage, ServerMessage, RefinementRequest } from '../../shared/types.js';
+import type { ClientMessage, ServerMessage, RefinementRequest, SovereigntyMode } from '../../shared/types.js';
 
 // ── Event handler interface ──
 
@@ -20,6 +20,8 @@ export interface WSClientEvents {
   onTTSEnd: () => void;
   onAudioChunk: (chunk: ArrayBuffer) => void;
   onAssistantResponse: (text: string, stage: string) => void;
+  onModeChanged: (mode: SovereigntyMode) => void;
+  onConversationEnded: () => void;
   onError: (error: string) => void;
 }
 
@@ -29,6 +31,7 @@ export interface WSClient {
   sendAudio(data: ArrayBuffer, sampleRate: number): void;
   sendControl(action: 'start_conversation' | 'end_conversation'): void;
   sendRefinement(request: RefinementRequest): void;
+  sendMode(mode: SovereigntyMode): void;
   isConnected(): boolean;
 }
 
@@ -93,6 +96,18 @@ export class WSClientImpl implements WSClient {
     this.ws.send(JSON.stringify(msg));
   }
 
+  sendMode(mode: SovereigntyMode): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.warn('[WSClient] Cannot send mode — WebSocket not open');
+      return;
+    }
+    const msg: ClientMessage = {
+      type: 'control',
+      payload: { action: 'set_mode', data: { mode } },
+    };
+    this.ws.send(JSON.stringify(msg));
+  }
+
   isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
@@ -102,7 +117,6 @@ export class WSClientImpl implements WSClient {
   private handleMessage(event: MessageEvent): void {
     // Binary messages are audio chunks from TTS
     if (event.data instanceof ArrayBuffer) {
-      console.log(`[WSClient] Binary frame received: ${event.data.byteLength} bytes`);
       this.handlers.onAudioChunk?.(event.data);
       return;
     }
@@ -116,7 +130,6 @@ export class WSClientImpl implements WSClient {
       return;
     }
 
-    console.log(`[WSClient] Event received: ${message.type === 'event' ? message.event : message.type}`);
     this.dispatchServerMessage(message);
   }
 
@@ -151,6 +164,12 @@ export class WSClientImpl implements WSClient {
         break;
       case 'assistant_response':
         this.handlers.onAssistantResponse?.(message.data.text, message.data.stage);
+        break;
+      case 'mode_changed':
+        this.handlers.onModeChanged?.(message.data.mode);
+        break;
+      case 'conversation_ended':
+        this.handlers.onConversationEnded?.();
         break;
       case 'error':
         this.handlers.onError?.(message.data.message);
