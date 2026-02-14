@@ -5,6 +5,7 @@
  * voice pipeline communication, and listens on PORT (default 8080).
  */
 
+import 'dotenv/config';
 import { createServer } from 'node:http';
 import { SafeSecretsWSServer } from './ws-server.js';
 
