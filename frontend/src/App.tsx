@@ -6,8 +6,7 @@ import { Header } from './components/Header';
 import { createAvatarStateMachine } from './avatar-state-machine';
 import { createWSClient } from './ws-client';
 import { createAudioManager } from './audio-manager';
-import type { AvatarState, SpeakingStyle, RefinementRequest, SovereigntyMode } from '../../shared/types.js';
-import { SOVEREIGNTY_MODES } from '../../shared/types.js';
+import type { AvatarState, SpeakingStyle, SovereigntyMode } from '../../shared/types.js';
 import './App.css';
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws';
@@ -15,9 +14,6 @@ const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws';
 export function App() {
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
   const [speakingStyle, setSpeakingStyle] = useState<SpeakingStyle>('soft');
-  const [noteDraft, setNoteDraft] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [toneLabel, setToneLabel] = useState<SpeakingStyle | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [partialTranscript, setPartialTranscript] = useState('');
@@ -31,6 +27,17 @@ export function App() {
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
   const audioManagerRef = useRef(createAudioManager());
   const sovereigntyModeRef = useRef<SovereigntyMode>(sovereigntyMode);
+
+  const notepadVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Freeze notepad video at first frame once loaded
+  const handleNotepadLoaded = useCallback(() => {
+    const v = notepadVideoRef.current;
+    if (v) {
+      v.currentTime = 0;
+      v.pause();
+    }
+  }, []);
 
   const handleStartConversation = useCallback(() => {
     setStatusText('Connecting...');
@@ -74,11 +81,9 @@ export function App() {
       },
       onStyleUpdate: (style) => {
         setSpeakingStyle(style);
-        setToneLabel(style);
       },
-      onNoteDraftUpdate: (draft, newTags) => {
-        setNoteDraft(draft);
-        setTags(newTags);
+      onNoteDraftUpdate: (draft) => {
+        // Note draft available for future use
       },
       onTTSStart: () => {
         setStatusText('🔊 Speaking...');
@@ -142,17 +147,6 @@ export function App() {
     client.connect(WS_URL);
   }, []);
 
-  const handleRefinement = useCallback((type: RefinementRequest['type']) => {
-    wsClientRef.current?.sendRefinement({ type });
-    setStatusText('🤔 Refining...');
-  }, []);
-
-  const handleCopy = useCallback(() => {
-    if (noteDraft) {
-      navigator.clipboard.writeText(noteDraft);
-    }
-  }, [noteDraft]);
-
   const handleModeChange = useCallback((mode: SovereigntyMode) => {
     setSovereigntyMode(mode);
     sovereigntyModeRef.current = mode;
@@ -172,121 +166,130 @@ export function App() {
   }, []);
 
   const showStartButton = !isConnected || avatarState === 'idle';
-  const showEndButton = isConnected && avatarState !== 'idle';
 
   return (
     <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
       <Header />
 
-      {/* Sovereignty mode selector */}
-      <div data-testid="sovereignty-selector" style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-        {(Object.entries(SOVEREIGNTY_MODES) as [SovereigntyMode, typeof SOVEREIGNTY_MODES[SovereigntyMode]][]).map(([mode, config]) => (
-          <button
-            key={mode}
-            onClick={() => handleModeChange(mode)}
-            title={config.description}
-            style={{
-              padding: '8px 16px',
-              fontSize: '0.85rem',
-              border: sovereigntyMode === mode ? '2px solid #DC143C' : '1px solid #ccc',
-              borderRadius: '20px',
-              background: sovereigntyMode === mode ? '#fce4ec' : '#fff',
-              color: '#333',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {config.label}
-          </button>
-        ))}
-      </div>
+      {/* ── TOP ROW: Notepad (left) + Video screen (right) ── */}
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
 
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-      {/* Left column: Avatar + conversation transcript */}
-      <div className="app__left-panel" data-testid="left-panel" style={{ flex: '0 0 22%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-        <HeartAvatar avatarState={avatarState} speakingStyle={speakingStyle} />
-
-        {showStartButton && (
-          <button
-            className="app__start-button"
-            onClick={handleStartConversation}
-            data-testid="start-conversation-button"
-            style={{ padding: '12px 32px', fontSize: '1.1rem', background: '#DC143C', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer' }}
-          >
-            Start Conversation
-          </button>
-        )}
-
-        {showEndButton && (
-          <button
-            className="app__end-button"
-            onClick={handleEndConversation}
-            data-testid="end-conversation-button"
-            style={{ padding: '12px 32px', fontSize: '1.1rem', background: '#666', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer' }}
-          >
-            End Conversation
-          </button>
-        )}
-
-        {statusText && (
-          <div data-testid="status-text" style={{ fontSize: '0.95rem', color: '#555', textAlign: 'center' }}>
-            {statusText}
+        {/* Left column: Notepad video + buttons underneath */}
+        <div style={{ flex: '0 0 24%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Notepad video container — 9:16 portrait */}
+          <div className="app__right-panel" data-testid="right-panel" style={{ aspectRatio: '9 / 16', position: 'relative', borderRadius: '16px', background: 'none', boxShadow: 'none', border: 'none' }}>
+            {/* Notepad video background — frozen at first frame, flipped on Y axis */}
+            <video
+              ref={notepadVideoRef}
+              src="/videos/notepad-compressed.mp4"
+              muted
+              playsInline
+              preload="auto"
+              onLoadedData={handleNotepadLoaded}
+              data-testid="notepad-video"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius: '16px',
+                zIndex: 0,
+                transform: 'scaleX(-1)',
+                overflow: 'hidden',
+              }}
+            />
+            {/* Artifact content overlays on top of the video */}
+            <div style={{ position: 'relative', zIndex: 1, height: '100%', overflow: 'visible' }}>
+              <ArtifactPanel
+                sovereigntyMode={sovereigntyMode}
+                onModeChange={handleModeChange}
+              />
+            </div>
           </div>
-        )}
 
-        {errorText && (
-          <div data-testid="error-text" style={{ fontSize: '0.9rem', color: '#d32f2f', background: '#fce4ec', padding: '8px 16px', borderRadius: '8px', textAlign: 'center' }}>
-            {errorText}
+          {/* Button below the notepad — toggles between Start / End */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {showStartButton ? (
+              <button
+                className="app__start-button"
+                onClick={handleStartConversation}
+                data-testid="start-conversation-button"
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#DC143C', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: '100%' }}
+              >
+                Start Conversation
+              </button>
+            ) : (
+              <button
+                className="app__end-button"
+                onClick={handleEndConversation}
+                data-testid="end-conversation-button"
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#666', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: '100%' }}
+              >
+                End Conversation
+              </button>
+            )}
           </div>
-        )}
-
-        {partialTranscript && (
-          <div data-testid="partial-transcript" style={{ fontSize: '0.9rem', color: '#888', fontStyle: 'italic', textAlign: 'center' }}>
-            "{partialTranscript}"
-          </div>
-        )}
-
-        {transcriptLog.length > 0 && (
-          <div data-testid="transcript-log" style={{ width: '100%', maxHeight: '300px', overflowY: 'auto', fontSize: '0.85rem', color: '#666', background: '#f9f9f9', padding: '12px', borderRadius: '8px', border: '1px solid #eee' }}>
-            {transcriptLog.map((line, i) => (
-              <div key={i} style={{ marginBottom: '4px', color: line.startsWith('You:') ? '#333' : '#888' }}>{line}</div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Center column: Video frame + LLM spoken response */}
-      <div className="app__center-panel" data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <VideoFrame />
-        <div style={{ fontSize: '0.8rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          💬 Spoken Response {conversationStage && `(${conversationStage})`}
         </div>
-        <div data-testid="assistant-response" style={{
-          flex: '1',
-          fontSize: '1rem',
-          lineHeight: '1.6',
-          color: '#1a237e',
-          background: '#e8eaf6',
-          padding: '16px 20px',
-          borderRadius: '12px',
-          border: '1px solid #c5cae9',
-          minHeight: '120px',
-          whiteSpace: 'pre-wrap',
-        }}>
-          {assistantResponse || <span style={{ color: '#9fa8da', fontStyle: 'italic' }}>The assistant's spoken response will appear here...</span>}
-        </div>
-      </div>
 
-      {/* Right column: Artifact panel (love note draft) — 9:16 portrait */}
-      <div className="app__right-panel" data-testid="right-panel" style={{ flex: '0 0 24%', aspectRatio: '9 / 16', position: 'relative', overflow: 'hidden', borderRadius: '16px' }}>
-        <ArtifactPanel
-          noteDraft={noteDraft}
-          tags={tags}
-          toneLabel={toneLabel}
-          onRefinement={handleRefinement}
-          onCopy={handleCopy}
-        />
-      </div>
+        {/* Right column: Wide video screen + two sub-columns underneath */}
+        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <VideoFrame />
+
+          {/* ── BOTTOM ROW under video: Spoken response (left) + Conversation flow (right) ── */}
+          <div style={{ display: 'flex', gap: '16px', flex: '1' }}>
+
+            {/* Sub-column 1: Assistant spoken response */}
+            <div data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '8px', background: '#e8eaf6', padding: '16px 20px', borderRadius: '12px', border: '1px solid #c5cae9', minHeight: '150px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#7986cb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                💬 Spoken Response {conversationStage && `(${conversationStage})`}
+              </div>
+              <div data-testid="assistant-response" style={{
+                flex: '1',
+                fontSize: '1rem',
+                lineHeight: '1.6',
+                color: '#1a237e',
+                whiteSpace: 'pre-wrap',
+              }}>
+                {assistantResponse || <span style={{ color: '#9fa8da', fontStyle: 'italic' }}>The assistant's spoken response will appear here...</span>}
+              </div>
+            </div>
+
+            {/* Sub-column 2: Conversation flow — avatar, status, transcript */}
+            <div data-testid="left-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: '#fce4ec', padding: '16px 20px', borderRadius: '12px', border: '1px solid #f8bbd0', minHeight: '150px' }}>
+              <HeartAvatar avatarState={avatarState} speakingStyle={speakingStyle} />
+
+              {statusText && (
+                <div data-testid="status-text" style={{ fontSize: '0.9rem', color: '#555', textAlign: 'center' }}>
+                  {statusText}
+                </div>
+              )}
+
+              {errorText && (
+                <div data-testid="error-text" style={{ fontSize: '0.85rem', color: '#d32f2f', background: '#fce4ec', padding: '6px 12px', borderRadius: '8px', textAlign: 'center' }}>
+                  {errorText}
+                </div>
+              )}
+
+              {partialTranscript && (
+                <div data-testid="partial-transcript" style={{ fontSize: '0.85rem', color: '#888', fontStyle: 'italic', textAlign: 'center' }}>
+                  "{partialTranscript}"
+                </div>
+              )}
+
+              {transcriptLog.length > 0 && (
+                <div data-testid="transcript-log" style={{ width: '100%', maxHeight: '200px', overflowY: 'auto', fontSize: '0.8rem', color: '#666', background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
+                  {transcriptLog.map((line, i) => (
+                    <div key={i} style={{ marginBottom: '4px', color: line.startsWith('You:') ? '#333' : '#888' }}>{line}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
   );
