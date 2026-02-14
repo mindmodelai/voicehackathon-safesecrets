@@ -1,7 +1,7 @@
-# ❤️ Canada-Sovereign Valentine Voice AI – Architecture & Execution Plan
+# ❤️ SafeSecrets – Architecture & Execution Plan
 
 ## 🎯 Concept Overview
-A voice-first Valentine assistant with a 3D animated heart avatar (left panel) and a dynamic love-note artifact panel (right panel).
+SafeSecrets is a real-time conversational voice application with a 3D animated heart avatar (left panel) and a dynamic love-note artifact panel (right panel).
 
 The assistant:
 - Listens via streaming STT
@@ -243,12 +243,12 @@ Frontend:
 # 📄 Judge-Ready README Template
 
 ## Project Name
-**HeartSpeak AI** (example name)
+**SafeSecrets**
 
 ## Summary
-A voice-first Valentine AI assistant with a 3D animated heart avatar that helps users create personalized love notes and poems.
+SafeSecrets is a real-time conversational voice application with a 3D animated heart avatar that helps users create personalized love notes and poems.
 
-This project is built with **Mastra** as the orchestration layer and is designed to support **Canadian data sovereignty** by keeping voice processing in **AWS Canada (ca-central-1)**.
+This project is built with **Mastra** as the orchestration layer and gives users the option of true **Canadian data sovereignty** by running inference and voice services in **AWS Canada (ca-central-1)**.
 
 ---
 
@@ -395,11 +395,12 @@ Recommended:
 
 # 🎉 Final Outcome
 
-A sovereign, voice-first Valentine assistant with:
+SafeSecrets delivers:
 - Real-time conversational AI
 - Animated avatar driven by Mastra signaling
 - Structured love note artifact generation
 - Clean orchestration via Mastra
+- Canadian data sovereignty option
 
 Confident, memorable, and hackathon-ready.
 
