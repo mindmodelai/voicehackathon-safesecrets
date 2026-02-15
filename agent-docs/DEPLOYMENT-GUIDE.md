@@ -1,5 +1,9 @@
 # SafeSecrets Deployment Guide
 
+This guide covers deploying SafeSecrets to AWS EC2 with SSL, auto-start, and production configuration.
+
+**Automated Scripts:** This directory contains `deploy.sh` and `ec2-setup.sh` scripts that automate many of these steps. See the end of this guide for script usage.
+
 ## Prerequisites
 
 - AWS Account with EC2, Bedrock, Transcribe, and Polly access
@@ -230,3 +234,41 @@ For detailed information, see:
 - `DEPLOYMENT-COMPLETE.md` - Full deployment details
 - `DEPLOYMENT-CHECKLIST.md` - Step-by-step checklist
 - `nginx-safesecrets.conf` - Nginx configuration
+
+
+## Automated Deployment Scripts
+
+This directory contains helper scripts to automate deployment:
+
+### ec2-setup.sh
+
+Run this once on your EC2 instance to install all prerequisites:
+
+```bash
+# Copy to EC2
+scp -i your-key.pem agent-docs/ec2-setup.sh ec2-user@your-ip:~
+
+# SSH and run
+ssh -i your-key.pem ec2-user@your-ip
+chmod +x ec2-setup.sh
+./ec2-setup.sh
+```
+
+This installs Node.js, Nginx, PM2, and creates the necessary directories.
+
+### deploy.sh
+
+Run this from your local machine to build and deploy updates:
+
+```bash
+# Ensure .env.local is configured with EC2_PUBLIC_IP, EC2_USER, SSH_KEY_PATH
+./agent-docs/deploy.sh
+```
+
+This script:
+1. Builds frontend and backend
+2. Uploads files to EC2
+3. Installs dependencies
+4. Restarts the backend service
+
+**Note:** Both scripts read configuration from `.env.local` in the project root.
