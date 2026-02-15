@@ -18,10 +18,11 @@ A mode selector at the top of the UI lets users choose where their data is proce
 
 | Mode | LLM + STT | TTS | Notes |
 |------|-----------|-----|-------|
-| 🇨🇦 Full Canada | ca-central-1 | Polly Neural (ca-central-1) | All data stays in Canada |
-| 🇨🇦 Canada + US Voice | ca-central-1 | Polly Generative (us-east-1) | Better voice quality, data processing in CA |
-| 🇺🇸 US Bedrock + Voice | us-east-1 | Polly Generative (us-east-1) | All AWS services in US |
+| 🇨🇦 All Canadian | ca-central-1 | Polly Neural (ca-central-1) | All data stays in Canada |
+| 🇨🇦 All American | ca-central-1 | Polly Generative (us-east-1) | Better voice quality, data processing in CA |
+| 🇺🇸 All USA | us-east-1 | Polly Generative (us-east-1) | All AWS services in US |
 | 🇺🇸 Full US + Smallest.ai | us-east-1 | Smallest.ai Lightning v3.1 | Third-party TTS, expressive voice |
+| 🚀 AWS-Free (Smallest.ai) | OpenAI (no region) | Smallest.ai Lightning v3.1 | No AWS required |
 
 Switching modes ends any active conversation and reconfigures all adapters (Transcribe, Bedrock, Polly/Smallest.ai) for the selected regions.
 
@@ -79,11 +80,11 @@ Mastra is the central orchestration layer. Each WebSocket session gets its own `
 
 | Mode | STT Adapter | LLM | TTS Adapter |
 |------|-------------|-----|-------------|
-| 🇨🇦 Full Canada | TranscribeAdapter → ca-central-1 | Bedrock (Claude 3 Haiku) → ca-central-1 | PollyAdapter → Neural, ca-central-1 |
-| 🇨🇦 Canada + US Voice | TranscribeAdapter → ca-central-1 | Bedrock (Claude 3 Haiku) → ca-central-1 | PollyAdapter → Generative, us-east-1 |
-| 🇺🇸 US Bedrock + Voice | TranscribeAdapter → us-east-1 | Bedrock (Claude 3 Haiku) → us-east-1 | PollyAdapter → Generative, us-east-1 |
+| 🇨🇦 All Canadian | TranscribeAdapter → ca-central-1 | Bedrock (Claude 3 Haiku) → ca-central-1 | PollyAdapter → Neural, ca-central-1 |
+| 🇨🇦 All American | TranscribeAdapter → ca-central-1 | Bedrock (Claude 3 Haiku) → ca-central-1 | PollyAdapter → Generative, us-east-1 |
+| 🇺🇸 All USA | TranscribeAdapter → us-east-1 | Bedrock (Claude 3 Haiku) → us-east-1 | PollyAdapter → Generative, us-east-1 |
 | 🇺🇸 Full US + Smallest.ai | SmallestSTTAdapter → Pulse API | Bedrock (Claude 3 Haiku) → us-east-1 | SmallestAdapter → Lightning v3.1 |
-| 🌐 AWS-Free | SmallestSTTAdapter → Lightning API | OpenAI (GPT-4o-mini) | SmallestAdapter → Lightning v3.1 |
+| 🚀 AWS-Free (Smallest.ai) | SmallestSTTAdapter → Lightning API | OpenAI (GPT-4o-mini) | SmallestAdapter → Lightning v3.1 |
 
 When the user switches modes, `handleSetMode()` destroys the current adapters and instantiates new ones with the correct region/provider configuration. The Mastra workflow engine is also recreated with the new LLM provider (Bedrock or OpenAI). Any active conversation is ended first.
 
@@ -108,18 +109,18 @@ A production instance is available at **https://safesecrets.ca** for testing and
 ### Prerequisites
 
 - **Node.js 18+** (tested with Node 20 and 24)
-- **For AWS-based modes** (Full Canada, Canada + US Voice, US Bedrock + Voice, Full US + Smallest.ai):
+- **For AWS-based modes** (All Canadian, All American, All USA, Full US + Smallest.ai):
   - AWS Account with:
     - Bedrock model access enabled in `ca-central-1` (and optionally `us-east-1` for US modes)
     - Transcribe and Polly available in `ca-central-1` and `us-east-1`
   - AWS Credentials configured (via environment variables or `~/.aws/credentials`)
   - Smallest.ai API Key from https://smallest.ai (for Full US + Smallest.ai mode only)
-- **For AWS-Free mode**:
+- **For AWS-Free (Smallest.ai) mode**:
   - OpenAI API Key from https://platform.openai.com
   - Smallest.ai API Key from https://smallest.ai
   - No AWS credentials required
 
-**Note:** The AWS-Free mode requires no AWS credentials (uses OpenAI for LLM and Smallest.ai for STT/TTS). All other modes require AWS credentials for Bedrock (LLM), Transcribe (STT), and optionally Polly (TTS).
+**Note:** The AWS-Free (Smallest.ai) mode requires no AWS credentials (uses OpenAI for LLM and Smallest.ai for STT/TTS). All other modes require AWS credentials for Bedrock (LLM), Transcribe (STT), and optionally Polly (TTS).
 
 ### Required IAM Permissions
 
@@ -400,7 +401,7 @@ For production deployment to AWS EC2 with SSL, auto-start, and full infrastructu
 
 ## Data Sovereignty
 
-The sovereignty mode dial is the core differentiator. In Full Canada mode, all audio, transcription, LLM inference, and speech synthesis stay within `ca-central-1`. No data leaves Canadian infrastructure. The other modes progressively trade data residency for voice quality or provider variety, with the UI clearly indicating which regions are in use.
+The sovereignty mode dial is the core differentiator. In "All Canadian" mode, all audio, transcription, LLM inference, and speech synthesis stay within `ca-central-1`. No data leaves Canadian infrastructure. The other modes progressively trade data residency for voice quality or provider variety, with the UI clearly indicating which regions are in use. The "AWS-Free (Smallest.ai)" mode requires no AWS credentials and uses OpenAI for LLM with Smallest.ai for voice services.
 
 ## License
 
