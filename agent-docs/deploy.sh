@@ -5,19 +5,30 @@
 
 set -e
 
-EC2_HOST="99.79.9.109"
-EC2_USER="ec2-user"
-SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/safesecrets-key.pem}"
+# Load from .env.local if it exists
+if [ -f .env.local ]; then
+    export $(grep -v '^#' .env.local | xargs)
+fi
+
+EC2_HOST="${EC2_PUBLIC_IP:-your_ec2_ip}"
+EC2_USER="${EC2_USER:-ec2-user}"
+SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/your-key.pem}"
 BACKEND_DIR="/opt/safesecrets/backend"
 FRONTEND_DIR="/var/www/safesecrets"
 
 echo "🚀 SafeSecrets Deployment Starting..."
 echo "Target: $EC2_USER@$EC2_HOST"
 
+# Check if variables are set
+if [ "$EC2_HOST" = "your_ec2_ip" ]; then
+    echo "❌ EC2_PUBLIC_IP not set. Create .env.local from .env.example"
+    exit 1
+fi
+
 # Check if SSH key exists
 if [ ! -f "$SSH_KEY" ]; then
     echo "❌ SSH key not found at: $SSH_KEY"
-    echo "Set SSH_KEY_PATH environment variable or place key at default location"
+    echo "Set SSH_KEY_PATH in .env.local or place key at default location"
     exit 1
 fi
 
