@@ -1,4 +1,4 @@
-import type { AvatarState, SpeakingStyle, AvatarEvent } from '@shared/types';
+import type { AvatarState, AvatarEvent } from '@shared/types';
 
 /**
  * Priority-based avatar state machine.
@@ -9,7 +9,6 @@ import type { AvatarState, SpeakingStyle, AvatarEvent } from '@shared/types';
  */
 export class AvatarStateMachineImpl {
   currentState: AvatarState = 'idle';
-  currentStyle: SpeakingStyle = 'soft';
 
   // Internal activity flags
   private isUserSpeaking = false;
@@ -30,8 +29,6 @@ export class AvatarStateMachineImpl {
 
       case 'TTS_START':
         this.isTTSActive = true;
-        this.currentStyle = event.style;
-        // Only transition if not listening (listening has higher priority)
         if (!this.isUserSpeaking) {
           this.currentState = 'speaking';
         }
@@ -39,7 +36,6 @@ export class AvatarStateMachineImpl {
 
       case 'TTS_END':
         this.isTTSActive = false;
-        // Only change state if not in a higher-priority state
         if (!this.isUserSpeaking) {
           this.currentState = this.resolveState();
         }
@@ -47,7 +43,6 @@ export class AvatarStateMachineImpl {
 
       case 'THINKING_START':
         this.isThinking = true;
-        // Only transition if not listening or speaking
         if (!this.isUserSpeaking && !this.isTTSActive) {
           this.currentState = 'thinking';
         }
@@ -55,7 +50,6 @@ export class AvatarStateMachineImpl {
 
       case 'THINKING_END':
         this.isThinking = false;
-        // Only change state if not in a higher-priority state
         if (!this.isUserSpeaking && !this.isTTSActive) {
           this.currentState = this.resolveState();
         }
@@ -65,26 +59,11 @@ export class AvatarStateMachineImpl {
     return this.currentState;
   }
 
-  /**
-   * Resolves the current state based on active flags, respecting priority.
-   * listening > speaking > thinking > idle
-   */
   private resolveState(): AvatarState {
     if (this.isUserSpeaking) return 'listening';
     if (this.isTTSActive) return 'speaking';
     if (this.isThinking) return 'thinking';
     return 'idle';
-  }
-
-  /**
-   * Returns the video source path for the current state and style.
-   * Speaking state uses style-specific variants; other states use a single video.
-   */
-  getVideoSource(): string {
-    if (this.currentState === 'speaking') {
-      return `/videos/speaking-${this.currentStyle}.mp4`;
-    }
-    return `/videos/${this.currentState}.mp4`;
   }
 }
 

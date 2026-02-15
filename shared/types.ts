@@ -131,7 +131,7 @@ export type ServerMessage =
 export type AvatarEvent =
   | { type: 'USER_SPEAKING_START' }
   | { type: 'USER_SPEAKING_END' }
-  | { type: 'TTS_START'; style: SpeakingStyle }
+  | { type: 'TTS_START' }
   | { type: 'TTS_END' }
   | { type: 'THINKING_START' }
   | { type: 'THINKING_END' };

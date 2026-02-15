@@ -1,5 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
-import { HeartAvatar } from './components/HeartAvatar';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { ArtifactPanel } from './components/ArtifactPanel';
 import { VideoFrame } from './components/VideoFrame';
 import { Header } from './components/Header';
@@ -7,14 +6,13 @@ import { AboutModal } from './components/AboutModal';
 import { createAvatarStateMachine } from './avatar-state-machine';
 import { createWSClient } from './ws-client';
 import { createAudioManager } from './audio-manager';
-import type { AvatarState, SpeakingStyle, SovereigntyMode } from '../../shared/types.js';
+import type { AvatarState, SovereigntyMode } from '../../shared/types.js';
 import './App.css';
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws';
 
 export function App() {
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
-  const [speakingStyle, setSpeakingStyle] = useState<SpeakingStyle>('soft');
   const [isConnected, setIsConnected] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [partialTranscript, setPartialTranscript] = useState('');
@@ -29,20 +27,30 @@ export function App() {
   const [llmOutput, setLlmOutput] = useState<{ phoneme?: string; style?: string; noteDraft?: string; tags?: string[]; stage?: string; spokenResponse?: string } | null>(null);
 
   // Tuner for note trapezoid
+  // Tuner for open (active conversation) state
   const [noteTuner, setNoteTuner] = useState({
     perspective: 310,
     originY: 0,
-    rotateY: 6,
-    height: 108,
-    marginTop: -17,
-    marginLeft: 6,
-    fontSize: 1.1,
-    lineHeight: 1.12,
+    rotateY: 6.5,
+    height: 115,
+    marginTop: -18,
+    marginLeft: 55,
+    fontSize: 1,
+    lineHeight: 1,
     padTop: 28,
-    padRight: 7,
+    padRight: 52,
     padBottom: 0,
     padLeft: 36,
-    marginBottom: 13,
+    marginBottom: 3,
+  });
+  // Tuner for closed (idle) state
+  const [closedTuner, setClosedTuner] = useState({
+    perspective: 400,
+    originY: 20,
+    rotateY: 6,
+    height: 115,
+    marginTop: -16,
+    marginLeft: 33,
   });
   const [showTuner, setShowTuner] = useState(false);
   const [tunerText, setTunerText] = useState('');
@@ -53,8 +61,23 @@ export function App() {
   const sovereigntyModeRef = useRef<SovereigntyMode>(sovereigntyMode);
 
   const notepadVideoRef = useRef<HTMLVideoElement>(null);
-  const reverseRafRef = useRef<number>(0);
+  const notepadBackVideoRef = useRef<HTMLVideoElement>(null);
+  const [showNotepadBack, setShowNotepadBack] = useState(false);
   const videoColRef = useRef<HTMLDivElement>(null);
+
+  // Track whether audio is actually playing out of the speakers
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
+  // Poll the audio manager so the video stays in sync with actual playback
+  useEffect(() => {
+    let rafId: number;
+    const poll = () => {
+      setIsAudioPlaying(audioManagerRef.current.isPlaying());
+      rafId = requestAnimationFrame(poll);
+    };
+    rafId = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   // Freeze notepad video at first frame once loaded
   const handleNotepadLoaded = useCallback(() => {
@@ -69,7 +92,7 @@ export function App() {
   const playNotepadForward = useCallback(() => {
     const v = notepadVideoRef.current;
     if (!v) return;
-    cancelAnimationFrame(reverseRafRef.current);
+    setShowNotepadBack(false);
     v.currentTime = 0;
     v.play().catch(() => {});
     const onEnded = () => {
@@ -79,21 +102,25 @@ export function App() {
     v.addEventListener('ended', onEnded);
   }, []);
 
-  // Play notepad video in reverse using requestAnimationFrame
+  // Play the pre-rendered reverse video, then snap back to notepad frame 0
   const playNotepadReverse = useCallback(() => {
-    const v = notepadVideoRef.current;
-    if (!v) return;
-    v.pause();
-    const step = () => {
-      if (v.currentTime <= 0.05) {
-        v.currentTime = 0;
-        v.pause();
-        return;
+    const back = notepadBackVideoRef.current;
+    if (!back) return;
+    setShowNotepadBack(true);
+    back.currentTime = 0;
+    back.play().catch(() => {});
+    const onEnded = () => {
+      back.pause();
+      back.removeEventListener('ended', onEnded);
+      // Snap back to the forward video frozen at frame 0 (normal idle state)
+      setShowNotepadBack(false);
+      const fwd = notepadVideoRef.current;
+      if (fwd) {
+        fwd.currentTime = 0;
+        fwd.pause();
       }
-      v.currentTime = Math.max(0, v.currentTime - 0.04);
-      reverseRafRef.current = requestAnimationFrame(step);
     };
-    reverseRafRef.current = requestAnimationFrame(step);
+    back.addEventListener('ended', onEnded);
   }, []);
 
   const handleStartConversation = useCallback(() => {
@@ -148,25 +175,35 @@ export function App() {
           setIsConnecting(false);
         });
       },
-      onStyleUpdate: (style) => {
-        setSpeakingStyle(style);
+      onStyleUpdate: (_style) => {
+        // Style no longer drives video selection — phoneme + conversation-looping only
       },
       onNoteDraftUpdate: (draft) => {
-        // Note draft available for future use
+        setTunerText(draft);
       },
       onTTSStart: () => {
         setStatusText('🔊 Speaking...');
-        const state = sm.transition({ type: 'TTS_START', style: sm.currentStyle });
+        // Clear thinking flag — agent is now speaking
+        sm.transition({ type: 'THINKING_END' });
+        const state = sm.transition({ type: 'TTS_START' });
         setAvatarState(state);
-        setSpeakingStyle(sm.currentStyle);
       },
       onTTSEnd: () => {
-        setStatusText('🎙️ Listening — speak now');
-        const state = sm.transition({ type: 'TTS_END' });
-        setAvatarState(state);
-        // Do NOT call stopPlayback here — audio chunks are still queued in the
-        // Web Audio scheduler and need to finish playing. stopPlayback is only
-        // for barge-in (user starts speaking while TTS is playing).
+        // Don't drop speaking state immediately — audio chunks are still
+        // playing in the Web Audio scheduler. Poll until playback actually
+        // finishes so the conversation video stays up while audio is audible.
+        const waitForPlaybackEnd = () => {
+          if (audio.isPlaying()) {
+            requestAnimationFrame(waitForPlaybackEnd);
+            return;
+          }
+          // Audio is truly silent now — safe to leave speaking state
+          sm.transition({ type: 'THINKING_END' });
+          const state = sm.transition({ type: 'TTS_END' });
+          setAvatarState(state);
+          setStatusText('🎙️ Listening — speak now');
+        };
+        waitForPlaybackEnd();
       },
       onAudioChunk: (chunk) => {
         audio.playAudioChunk(chunk);
@@ -183,17 +220,31 @@ export function App() {
       },
       onFinalTranscript: (text) => {
         setPartialTranscript('');
-        setTranscriptLog((prev) => [...prev, `You: ${text}`]);
+        setTranscriptLog((prev) => {
+          const entry = `You: ${text}`;
+          return prev[prev.length - 1] === entry ? prev : [...prev, entry];
+        });
         sm.transition({ type: 'USER_SPEAKING_END' });
-        sm.transition({ type: 'THINKING_START' });
-        setAvatarState('thinking');
-        setStatusText('🤔 Thinking...');
+        const state = sm.transition({ type: 'THINKING_START' });
+        setAvatarState(state);
+        // Only show thinking status if we actually entered thinking
+        // (speaking takes priority — don't interrupt TTS video)
+        if (state === 'thinking') {
+          setStatusText('🤔 Thinking...');
+        }
       },
       onAssistantResponse: (text, stage, extra) => {
         setAssistantResponse(text);
         setConversationStage(stage);
-        setTranscriptLog((prev) => [...prev, `[ai] ${text}`]);
+        setTranscriptLog((prev) => {
+          const entry = `[ai] ${text}`;
+          return prev[prev.length - 1] === entry ? prev : [...prev, entry];
+        });
         setLlmOutput({ phoneme: extra?.phoneme, style: extra?.style, noteDraft: extra?.noteDraft, tags: extra?.tags, stage, spokenResponse: text });
+        // Push note draft to the notepad
+        if (extra?.noteDraft) {
+          setTunerText(extra.noteDraft);
+        }
       },
       onModeChanged: (mode) => {
         setSovereigntyMode(mode);
@@ -242,16 +293,16 @@ export function App() {
 
   return (
     <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 24px 24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
-      <Header onAboutClick={() => setShowAbout(true)} onTunerToggle={() => setShowTuner(s => !s)} showTuner={showTuner} noteTuner={noteTuner} onNoteTunerChange={setNoteTuner} tunerText={tunerText} onTunerTextChange={setTunerText} />
+      <Header onAboutClick={() => setShowAbout(true)} onTunerToggle={() => setShowTuner(s => !s)} showTuner={showTuner} noteTuner={noteTuner} onNoteTunerChange={setNoteTuner} closedTuner={closedTuner} onClosedTunerChange={setClosedTuner} tunerText={tunerText} onTunerTextChange={setTunerText} />
 
       {/* ── TOP ROW: Notepad (left) + Video screen (right) ── */}
       <div className="app__top-row" style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
 
         {/* Left column: Notepad video + buttons underneath */}
-        <div className="app__notepad-col" style={{ flex: '0 0 24%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="app__notepad-col" style={{ flex: '0 0 28%', display: 'flex', flexDirection: 'column', gap: '12px', alignSelf: 'flex-start' }}>
           {/* Notepad video container — 9:16 portrait */}
           <div className="app__right-panel" data-testid="right-panel" style={{ aspectRatio: '9 / 16', position: 'relative', borderRadius: '16px', background: 'none', boxShadow: 'none', border: 'none' }}>
-            {/* Notepad video background — frozen at first frame, flipped on Y axis */}
+            {/* Notepad video background — frozen at first frame */}
             <video
               ref={notepadVideoRef}
               src="/videos/notepad-transparent.webm"
@@ -271,28 +322,51 @@ export function App() {
                 zIndex: 0,
                 overflow: 'hidden',
                 pointerEvents: 'none',
+                display: showNotepadBack ? 'none' : 'block',
+              }}
+            />
+            {/* Notepad reverse video — plays when conversation ends */}
+            <video
+              ref={notepadBackVideoRef}
+              src="/videos/notepad-transparent-back.webm"
+              muted
+              playsInline
+              preload="auto"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius: '16px',
+                zIndex: 0,
+                overflow: 'hidden',
+                pointerEvents: 'none',
+                display: showNotepadBack ? 'block' : 'none',
               }}
             />
             {/* Artifact content overlays on top of the video */}
-            <div style={{ position: 'relative', zIndex: 1, height: '100%', overflow: 'visible' }}>
+            <div style={{ position: 'absolute', inset: 0, zIndex: 1, overflow: 'visible' }}>
               <ArtifactPanel
                 sovereigntyMode={sovereigntyMode}
                 onModeChange={handleModeChange}
                 isActive={conversationActive}
                 noteTuner={noteTuner}
+                closedTuner={closedTuner}
                 tunerText={tunerText}
               />
             </div>
           </div>
 
           {/* Button below the notepad — toggles between Start / End */}
-          <div className="app__button-row" style={{ display: 'flex', justifyContent: 'center' }}>
+          <div className="app__button-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
             {buttonState === 'connecting' ? (
               <button
                 className="app__start-button"
                 disabled
                 data-testid="connecting-button"
-                style={{ padding: '12px 28px', fontSize: '1rem', background: '#999', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'not-allowed', width: 'calc(100% - 30px)', opacity: 0.7 }}
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#999', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'not-allowed', width: '100%', opacity: 0.7 }}
               >
                 Connecting…
               </button>
@@ -301,7 +375,7 @@ export function App() {
                 className="app__start-button"
                 onClick={handleStartConversation}
                 data-testid="start-conversation-button"
-                style={{ padding: '12px 28px', fontSize: '1rem', background: '#DC143C', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: 'calc(100% - 30px)' }}
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#DC143C', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: '100%' }}
               >
                 Start Conversation
               </button>
@@ -310,25 +384,36 @@ export function App() {
                 className="app__end-button"
                 onClick={handleEndConversation}
                 data-testid="end-conversation-button"
-                style={{ padding: '12px 28px', fontSize: '1rem', background: '#666', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: 'calc(100% - 30px)' }}
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#666', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: '100%' }}
               >
                 End Conversation
               </button>
             )}
+            <button
+              className="app__reset-button"
+              onClick={() => window.location.reload()}
+              data-testid="reset-button"
+              style={{ padding: '10px 20px', fontSize: '0.9rem', background: '#aaa', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: '100%' }}
+            >
+              Reset
+            </button>
           </div>
         </div>
 
         {/* Right column: Wide video screen + two sub-columns underneath */}
         <div ref={videoColRef} className="app__video-col" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <VideoFrame avatarState={avatarState} phoneme={llmOutput?.phoneme} />
+          <VideoFrame avatarState={avatarState} phoneme={llmOutput?.phoneme} isAudioPlaying={isAudioPlaying} />
 
           {/* ── BOTTOM ROW under video: Spoken response (left) + Conversation flow (right) ── */}
           <div className="app__sub-row" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
             {/* Sub-column 1: LLM Phoneme Signaling */}
-            <div className="app__llm-panel" data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '8px', background: '#e8eaf6', padding: '16px 20px', borderRadius: '12px', border: '1px solid #c5cae9', minHeight: '150px' }}>
-              <div style={{ fontSize: '0.8rem', color: '#7986cb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                🎬 LLM Phoneme Signaling
+            <div className="app__llm-panel" data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '8px', background: '#e8eaf6', padding: '16px 20px', borderRadius: '12px', border: '1px solid #c5cae9', maxHeight: '400px', overflow: 'auto' }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: '#7986cb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  🗣️ LLM Phoneme Signaling
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#9fa8da', marginTop: '2px' }}>Bedrock structured output</div>
               </div>
               <div data-testid="llm-output" style={{
                 fontSize: '0.88rem',
@@ -356,15 +441,20 @@ export function App() {
                     )}
                   </div>
                 ) : (
-                  <span style={{ color: '#9fa8da', fontStyle: 'italic' }}>Bedrock structured output will appear here...</span>
+                  <span style={{ color: '#9fa8da', fontStyle: 'italic' }}></span>
                 )}
               </div>
             </div>
 
-            {/* Sub-column 2: Conversation flow — avatar, status, transcript */}
-            <div className="app__convo-panel" data-testid="left-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '12px', background: '#fce4ec', padding: '16px 20px', borderRadius: '12px', border: '1px solid #f8bbd0', minHeight: '150px' }}>
-              <HeartAvatar avatarState={avatarState} speakingStyle={speakingStyle} />
-
+            {/* Sub-column 2: Conversation log */}
+            <div className="app__convo-panel" data-testid="left-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '12px', background: '#fce4ec', padding: '16px 20px', borderRadius: '12px', border: '1px solid #f8bbd0', maxHeight: '400px', overflow: 'auto' }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: '#c06080', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <img src="/logos/favicon-16.png" alt="" width={14} height={14} style={{ verticalAlign: 'middle', marginRight: '4px', marginTop: '-2px' }} />
+                  Conversation Log
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#d4849e', marginTop: '2px' }}>Record of conversation</div>
+              </div>
               {statusText && (
                 <div data-testid="status-text" style={{ fontSize: '0.9rem', color: '#555', textAlign: 'center' }}>
                   {statusText}
