@@ -32,6 +32,7 @@ export function App() {
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
   const audioManagerRef = useRef(createAudioManager());
   const sovereigntyModeRef = useRef<SovereigntyMode>('full_canada');
+  const transcriptLogRef = useRef<HTMLDivElement>(null);
 
   const notepadVideoRef = useRef<HTMLVideoElement>(null);
   const notepadBackVideoRef = useRef<HTMLVideoElement>(null);
@@ -40,6 +41,13 @@ export function App() {
 
   // Track whether audio is actually playing out of the speakers
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
+  // Auto-scroll transcript log to bottom
+  useEffect(() => {
+    if (transcriptLogRef.current) {
+      transcriptLogRef.current.scrollTop = transcriptLogRef.current.scrollHeight;
+    }
+  }, [transcriptLog]);
 
   // Poll the audio manager so the video stays in sync with actual playback
   useEffect(() => {
@@ -440,7 +448,7 @@ export function App() {
                 <div style={{ fontSize: '0.7rem', color: '#d4849e', marginTop: '2px' }}>Record of conversation</div>
               </div>
               {statusText && (
-                <div data-testid="status-text" style={{ fontSize: '0.9rem', color: '#555', textAlign: 'center' }}>
+                <div data-testid="status-text" aria-live="polite" style={{ fontSize: '0.9rem', color: '#555', textAlign: 'center' }}>
                   {statusText}
                 </div>
               )}
@@ -458,7 +466,7 @@ export function App() {
               )}
 
               {transcriptLog.length > 0 && (
-                <div data-testid="transcript-log" style={{ width: '100%', maxHeight: '200px', overflowY: 'auto', fontSize: '0.8rem', color: '#666', background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
+                <div data-testid="transcript-log" ref={transcriptLogRef} aria-live="polite" style={{ width: '100%', maxHeight: '200px', overflowY: 'auto', fontSize: '0.8rem', color: '#666', background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
                   {transcriptLog.map((line, i) => {
                     const isAi = line.startsWith('[ai] ');
                     const isUser = line.startsWith('You:');
