@@ -37,6 +37,98 @@ Switching modes ends any active conversation and reconfigures all adapters (Tran
 | Backend | Node.js + TypeScript, WebSocket server (ws), dotenv |
 | Transport | WebSocket — binary audio frames + JSON control messages |
 
+## Quick Start (Local Development)
+
+### Prerequisites
+
+- **Node.js 18+** (tested with Node 20 and 24)
+- **AWS Account** with:
+  - Bedrock model access enabled in `ca-central-1` (and optionally `us-east-1` for US modes)
+  - Transcribe and Polly available in `ca-central-1` and `us-east-1`
+- **AWS Credentials** configured (via environment variables or `~/.aws/credentials`)
+- **Smallest.ai API Key** (optional, only needed for "Full US + Smallest.ai" mode)
+
+### 1. Clone and Install
+
+```bash
+git clone <your-repo-url>
+cd safesecrets
+
+# Install all dependencies
+cd backend && npm install
+cd ../frontend && npm install
+cd ../shared && npm install
+```
+
+### 2. Configure Environment Variables
+
+Create `backend/.env` from the example:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Edit `backend/.env` and add your credentials:
+
+```bash
+# AWS Credentials (required)
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=ca-central-1
+
+# Smallest.ai API Key (optional - only needed for "Full US + Smallest.ai" mode)
+# Get your key from https://smallest.ai
+SMALLEST_AI_API_KEY=your_smallest_ai_api_key_here
+
+# Optional: Override defaults
+PORT=8080
+BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+```
+
+**Note:** The first three modes (Full Canada, Canada + US Voice, US Bedrock + Voice) work with just AWS credentials. The Smallest.ai API key is only required if you want to test the fourth mode.
+
+### 3. Build Shared Types
+
+```bash
+cd shared
+npm run build
+```
+
+This compiles the TypeScript types used by both frontend and backend.
+
+### 4. Start the Backend
+
+```bash
+cd backend
+npm run dev
+```
+
+The backend starts on `http://localhost:8080`. You should see:
+```
+SafeSecrets backend listening on port 8080
+WebSocket endpoint: ws://localhost:8080/ws
+Health check: http://localhost:8080/health
+```
+
+### 5. Start the Frontend
+
+In a new terminal:
+
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend opens at `http://localhost:5173`.
+
+### 6. Test the Application
+
+1. Open `http://localhost:5173` in your browser
+2. Allow microphone access when prompted
+3. Select a sovereignty mode from the dropdown
+4. Click the heart avatar to start speaking
+5. Follow the conversation to compose your love note!
+
 ## Project Structure
 
 ```
@@ -68,70 +160,9 @@ safesecrets/
 └── agent-instructions.md        # Quick reference to editable prompt files
 ```
 
-## Prerequisites
+## Customizing the AI
 
-- Node.js 18+ (tested with Node 24)
-- AWS account with:
-  - Bedrock model access enabled in ca-central-1 (and us-east-1 for US modes)
-  - Transcribe and Polly available in ca-central-1 and us-east-1
-- AWS credentials (env vars or `~/.aws/credentials`)
-- Smallest.ai API key (for Full US mode only)
-
-## Setup
-
-### 1. Install dependencies
-
-```bash
-cd backend && npm install
-cd ../frontend && npm install
-```
-
-### 2. Environment variables
-
-Create `backend/.env`:
-
-```bash
-AWS_ACCESS_KEY_ID=<your-key>
-AWS_SECRET_ACCESS_KEY=<your-secret>
-AWS_REGION=ca-central-1
-
-# Optional: Smallest.ai TTS (required for Full US mode)
-SMALLEST_AI_API_KEY=<your-smallest-ai-key>
-
-# Optional overrides
-BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
-PORT=8080
-```
-
-### 3. Compile shared types
-
-```bash
-npx tsc --project shared/tsconfig.json --outDir shared --declaration --declarationMap --sourceMap
-```
-
-### 4. Run the backend
-
-```bash
-cd backend
-npm run dev
-```
-
-Starts the HTTP + WebSocket server on port 8080. Health check at `http://localhost:8080/health`.
-
-### 5. Run the frontend
-
-In a separate terminal:
-
-```bash
-cd frontend
-npm run dev
-```
-
-Opens at `http://localhost:5173`.
-
-## Editing the AI Behavior
-
-The AI's personality and prompts are isolated into three files you can edit directly:
+The AI's personality and prompts are isolated into files you can edit directly:
 
 | What | File |
 |------|------|
@@ -139,13 +170,16 @@ The AI's personality and prompts are isolated into three files you can edit dire
 | Per-stage prompts (collect/compose/refine) | `backend/src/prompt-builders.ts` |
 | AWS region & config | `backend/src/workflow-constants.ts` |
 
-See [`agent-instructions.md`](agent-instructions.md) for a quick reference.
+See [`agent-instructions.md`](agent-instructions.md) for details.
 
 ## Running Tests
 
 ```bash
-cd backend && npm test    # Backend tests
-cd frontend && npm test   # Frontend tests
+# Backend tests
+cd backend && npm test
+
+# Frontend tests
+cd frontend && npm test
 ```
 
 Both use Vitest. Test suites include unit tests and property-based tests (fast-check).
@@ -174,13 +208,40 @@ The frontend and backend communicate over a single WebSocket connection at `/ws`
   - `conversation_ended` — conversation teardown complete
   - `error` — error message
 
+## Troubleshooting
+
+### "Cannot find module" errors
+Make sure you've built the shared types:
+```bash
+cd shared && npm run build
+```
+
+### AWS credential errors
+Verify your AWS credentials are configured:
+```bash
+aws sts get-caller-identity
+```
+
+### Bedrock access denied
+Ensure Bedrock model access is enabled in your AWS account:
+1. Go to AWS Console → Bedrock → Model access
+2. Request access for Claude 3 Haiku in ca-central-1 (and us-east-1 if using US modes)
+
+### Smallest.ai API key warning
+If you see "Smallest.ai API key not configured" but aren't using the "Full US + Smallest.ai" mode, you can ignore this warning. The key is only required for that specific mode.
+
+### Microphone not working
+Ensure your browser has microphone permissions enabled for localhost.
+
+## Production Deployment
+
+For production deployment to AWS EC2 with SSL, auto-start, and full infrastructure setup, see:
+- **[agent-docs/DEPLOYMENT-GUIDE.md](agent-docs/DEPLOYMENT-GUIDE.md)** - Complete EC2 deployment guide
+- **[agent-docs/infrastructure-setup.md](agent-docs/infrastructure-setup.md)** - AWS infrastructure details
+
 ## Data Sovereignty
 
 The sovereignty mode dial is the core differentiator. In Full Canada mode, all audio, transcription, LLM inference, and speech synthesis stay within `ca-central-1`. No data leaves Canadian infrastructure. The other modes progressively trade data residency for voice quality or provider variety, with the UI clearly indicating which regions are in use.
-
-## Deployment
-
-See `agent-docs/infrastructure-setup.md` for EC2 and AWS resource details, and `agent-docs/phase2-infrastructure-requirements.md` for the multi-region deployment checklist.
 
 ## License
 
