@@ -113,9 +113,7 @@ A production instance is available at **https://safesecrets.ca** for testing and
     - Bedrock model access enabled in `ca-central-1` (and optionally `us-east-1` for US modes)
     - Transcribe and Polly available in `ca-central-1` and `us-east-1`
   - AWS Credentials configured (via environment variables or `~/.aws/credentials`)
-- **For Smallest.ai modes** (Full US + Smallest.ai):
-  - Smallest.ai API Key from https://smallest.ai
-  - AWS credentials required for Bedrock (LLM) and Transcribe (STT)
+  - Smallest.ai API Key from https://smallest.ai (for Full US + Smallest.ai mode only)
 - **For AWS-Free mode**:
   - OpenAI API Key from https://platform.openai.com
   - Smallest.ai API Key from https://smallest.ai
