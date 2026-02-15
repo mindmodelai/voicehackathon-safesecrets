@@ -75,19 +75,19 @@ function buildNoStreamClient() {
 describe('PollyAdapter', () => {
   describe('region configuration', () => {
     it('should report ca-central-1 as the pinned region', () => {
-      const adapter = new PollyAdapter(buildMockClient([]));
+      const adapter = new PollyAdapter({ client: buildMockClient([]) });
       expect(adapter.getRegion()).toBe('ca-central-1');
     });
   });
 
   describe('voice configuration', () => {
     it('should use the provided voice ID', () => {
-      const adapter = new PollyAdapter(buildMockClient([]), 'Ruth');
+      const adapter = new PollyAdapter({ client: buildMockClient([]), voiceId: 'Ruth' });
       expect(adapter.getVoiceId()).toBe('Ruth');
     });
 
     it('should default to Joanna when no voice ID provided', () => {
-      const adapter = new PollyAdapter(buildMockClient([]));
+      const adapter = new PollyAdapter({ client: buildMockClient([]) });
       expect(adapter.getVoiceId()).toBe('Joanna');
     });
   });
@@ -95,7 +95,7 @@ describe('PollyAdapter', () => {
   describe('synthesize', () => {
     it('should call Polly with correct parameters', async () => {
       const client = buildMockClient([Buffer.from([1, 2, 3])]);
-      const adapter = new PollyAdapter(client, 'Ruth');
+      const adapter = new PollyAdapter({ client, voiceId: 'Ruth' });
 
       await adapter.synthesize('Hello world', vi.fn());
 
@@ -111,7 +111,7 @@ describe('PollyAdapter', () => {
 
     it('should pass an abort signal to the client', async () => {
       const client = buildMockClient([Buffer.from([1, 2, 3])]);
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       await adapter.synthesize('test', vi.fn());
 
@@ -125,7 +125,7 @@ describe('PollyAdapter', () => {
       const chunk1 = Buffer.alloc(100, 0xaa);
       const chunk2 = Buffer.alloc(100, 0xbb);
       const client = buildMockClient([chunk1, chunk2]);
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       const receivedChunks: Buffer[] = [];
       await adapter.synthesize('test', (chunk) => receivedChunks.push(chunk));
@@ -139,7 +139,7 @@ describe('PollyAdapter', () => {
       // Create a chunk larger than the 4096 chunk size
       const largeChunk = Buffer.alloc(10000, 0xcc);
       const client = buildMockClient([largeChunk]);
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       const receivedChunks: Buffer[] = [];
       await adapter.synthesize('test', (chunk) => receivedChunks.push(chunk));
@@ -154,7 +154,7 @@ describe('PollyAdapter', () => {
 
     it('should handle empty audio stream', async () => {
       const client = buildMockClient([]);
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       const receivedChunks: Buffer[] = [];
       await adapter.synthesize('test', (chunk) => receivedChunks.push(chunk));
@@ -164,7 +164,7 @@ describe('PollyAdapter', () => {
 
     it('should throw if AudioStream is missing from response', async () => {
       const client = buildNoStreamClient();
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       await expect(adapter.synthesize('test', vi.fn())).rejects.toThrow(
         'No AudioStream in Polly response',
@@ -173,7 +173,7 @@ describe('PollyAdapter', () => {
 
     it('should propagate SDK errors', async () => {
       const client = buildErrorClient(new Error('Polly service unavailable'));
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       await expect(adapter.synthesize('test', vi.fn())).rejects.toThrow(
         'Polly service unavailable',
@@ -183,7 +183,7 @@ describe('PollyAdapter', () => {
     it('should track synthesizing state during synthesis', async () => {
       const chunk = Buffer.alloc(100, 0xdd);
       const client = buildSlowMockClient([chunk], 50);
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       expect(adapter.isSynthesizing()).toBe(false);
 
@@ -203,7 +203,7 @@ describe('PollyAdapter', () => {
     it('should resolve silently when stop() is called during synthesis', async () => {
       const chunks = Array.from({ length: 10 }, () => Buffer.alloc(1000, 0xee));
       const client = buildSlowMockClient(chunks, 30);
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       const receivedChunks: Buffer[] = [];
       const promise = adapter.synthesize('test', (chunk) => receivedChunks.push(chunk));
@@ -220,7 +220,7 @@ describe('PollyAdapter', () => {
     });
 
     it('should be a no-op when stop() is called with no active synthesis', () => {
-      const adapter = new PollyAdapter(buildMockClient([]));
+      const adapter = new PollyAdapter({ client: buildMockClient([]) });
       // Should not throw
       expect(() => adapter.stop()).not.toThrow();
     });
@@ -228,7 +228,7 @@ describe('PollyAdapter', () => {
     it('should clear synthesizing state after stop()', async () => {
       const chunks = Array.from({ length: 5 }, () => Buffer.alloc(1000, 0xff));
       const client = buildSlowMockClient(chunks, 50);
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       const promise = adapter.synthesize('test', vi.fn());
       await new Promise((r) => setTimeout(r, 30));
@@ -250,7 +250,7 @@ describe('PollyAdapter', () => {
         });
       });
       const client = { send } as any;
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       const promise = adapter.synthesize('test', vi.fn());
 
@@ -274,7 +274,7 @@ describe('PollyAdapter', () => {
           .mockResolvedValueOnce({ AudioStream: createReadableFromChunks([chunk2]) }),
       } as any;
 
-      const adapter = new PollyAdapter(client);
+      const adapter = new PollyAdapter({ client });
 
       const received1: Buffer[] = [];
       await adapter.synthesize('first', (c) => received1.push(c));
@@ -299,7 +299,7 @@ describe('PollyAdapter', () => {
         { AudioStream: createReadableFromChunks([chunk2]) },
       );
 
-      const adapter = new PollyAdapter(slowClient);
+      const adapter = new PollyAdapter({ client: slowClient });
 
       // Start and cancel first synthesis
       const promise1 = adapter.synthesize('first', vi.fn());

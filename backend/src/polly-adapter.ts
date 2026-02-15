@@ -17,6 +17,7 @@ export interface PollyAdapterOptions {
   region?: string;
   voiceId?: VoiceId;
   engine?: Engine;
+  client?: PollyClient;
 }
 
 export class PollyAdapter {
@@ -38,7 +39,7 @@ export class PollyAdapter {
       this.region = opts.region ?? DEFAULT_REGION;
       this.voiceId = opts.voiceId ?? DEFAULT_VOICE_ID;
       this.engine = opts.engine ?? DEFAULT_ENGINE;
-      this.client = new PollyClient({ region: this.region });
+      this.client = opts.client ?? new PollyClient({ region: this.region });
     }
   }
 

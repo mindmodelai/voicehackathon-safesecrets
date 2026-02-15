@@ -34,13 +34,15 @@ export class TranscribeAdapter {
   private sessions: Map<string, SessionStream> = new Map();
   private region: string;
 
-  constructor(clientOrRegion?: TranscribeStreamingClient | string) {
+  constructor(clientOrRegion?: TranscribeStreamingClient | string, region?: string) {
     if (typeof clientOrRegion === 'string') {
       this.region = clientOrRegion;
       this.client = new TranscribeStreamingClient({ region: this.region });
     } else {
-      this.region = DEFAULT_REGION;
-      this.client = clientOrRegion ?? new TranscribeStreamingClient({ region: this.region });
+      // If a client is provided, we use it. If not, we create one with the provided region or default.
+      // We also update this.region to reflect the actual region in use (if provided).
+      this.client = clientOrRegion ?? new TranscribeStreamingClient({ region: region ?? DEFAULT_REGION });
+      this.region = region ?? DEFAULT_REGION;
     }
   }
 
