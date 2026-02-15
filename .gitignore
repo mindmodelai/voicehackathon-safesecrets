@@ -52,3 +52,19 @@ sam-internal/
 
 # Test artifacts
 *.pcm
+
+# Deployment scripts (temporary)
+*.ps1
+setup-*.sh
+remote-*.sh
+check-*.sh
+*.cmd
+
+# Deployment logs
+winscp.log
+*.log
+
+# Temporary files
+*.txt
+!package.json
+!tsconfig.json
