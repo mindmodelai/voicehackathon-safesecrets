@@ -13,10 +13,14 @@ import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
 import { SmallestAdapter } from './smallest-adapter.js';
 import { SmallestSTTAdapter } from './smallest-stt-adapter.js';
 import { OpenAIAdapter } from './openai-adapter.js';
+import { RateLimiter } from './rate-limiter.js';
 
 // ── Constants ──
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_CONNECTIONS = 20; // 20 connections per IP per minute
+const RATE_LIMIT_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 // ── Session Resources ──
 
@@ -120,6 +124,8 @@ export interface WSServerOptions {
 export class SafeSecretsWSServer {
   private wss: WebSocketServer;
   private sessions: Map<string, SessionResources> = new Map();
+  private connectionLimiter: RateLimiter;
+  private cleanupInterval: ReturnType<typeof setInterval>;
 
   // Shared adapters (can be overridden for testing)
   private defaultTranscribeAdapter?: TranscribeAdapter;
@@ -132,6 +138,13 @@ export class SafeSecretsWSServer {
     this.defaultPollyAdapter = options.pollyAdapter;
     this.defaultMastraWorkflow = options.mastraWorkflow;
     this.defaultVoiceProvider = options.voiceProvider;
+
+    this.connectionLimiter = new RateLimiter(RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_CONNECTIONS);
+
+    // Set up periodic cleanup for the rate limiter
+    this.cleanupInterval = setInterval(() => {
+      this.connectionLimiter.cleanup();
+    }, RATE_LIMIT_CLEANUP_INTERVAL_MS);
 
     if (options.server) {
       this.wss = new WebSocketServer({ server: options.server, path: '/ws' });
@@ -146,7 +159,18 @@ export class SafeSecretsWSServer {
 
   // ── Connection handling ──
 
-  private handleConnection(ws: WebSocket, _req: IncomingMessage): void {
+  private handleConnection(ws: WebSocket, req: IncomingMessage): void {
+    // Check rate limit
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    // If behind a proxy, x-forwarded-for might be a list
+    const clientIp = Array.isArray(ip) ? ip[0] : ip.split(',')[0].trim();
+
+    if (!this.connectionLimiter.check(clientIp)) {
+      console.warn(`[WSServer] Connection rejected: Rate limit exceeded for IP ${clientIp}`);
+      ws.close(1008, 'Rate limit exceeded');
+      return;
+    }
+
     const sessionId = randomUUID();
 
     const transcribeAdapter = this.defaultTranscribeAdapter ?? new TranscribeAdapter();
@@ -724,6 +748,8 @@ export class SafeSecretsWSServer {
 
   /** Gracefully shuts down the server and cleans up all sessions. */
   async close(): Promise<void> {
+    clearInterval(this.cleanupInterval);
+
     // Clean up all sessions
     const cleanupPromises = Array.from(this.sessions.values()).map((session) =>
       this.cleanupSession(session),
