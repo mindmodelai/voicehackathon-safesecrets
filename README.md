@@ -37,6 +37,10 @@ Switching modes ends any active conversation and reconfigures all adapters (Tran
 | Backend | Node.js + TypeScript, WebSocket server (ws), dotenv |
 | Transport | WebSocket — binary audio frames + JSON control messages |
 
+## Live Demo
+
+A production instance is available at **https://safesecrets.ca** for testing and evaluation. The demo uses shared AWS resources with a budget cap - if you encounter service errors, the budget limit may have been reached. For full functionality, please run locally with your own AWS credentials.
+
 ## Quick Start (Local Development)
 
 ### Prerequisites
