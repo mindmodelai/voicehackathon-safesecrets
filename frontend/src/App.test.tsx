@@ -12,6 +12,7 @@ const mockSendAudio = vi.fn();
 const mockSendControl = vi.fn();
 const mockSendRefinement = vi.fn();
 const mockIsConnected = vi.fn(() => false);
+const mockSendMode = vi.fn();
 
 vi.mock('./ws-client', () => ({
   createWSClient: (handlers: Record<string, (...args: unknown[]) => void>) => {
@@ -23,6 +24,7 @@ vi.mock('./ws-client', () => ({
       sendControl: mockSendControl,
       sendRefinement: mockSendRefinement,
       isConnected: mockIsConnected,
+      sendMode: mockSendMode,
     };
   },
 }));
@@ -62,15 +64,20 @@ describe('App layout', () => {
     expect(screen.getByTestId('right-panel')).toBeInTheDocument();
   });
 
-  it('renders HeartAvatar in the left panel', () => {
+  it('renders VideoFrame', () => {
     render(<App />);
-    const leftPanel = screen.getByTestId('left-panel');
-    expect(leftPanel.querySelector('.heart-avatar')).toBeInTheDocument();
+    const video = document.querySelector('video[src*="idle-compressed"]');
+    expect(video).toBeInTheDocument();
   });
 
   it('renders ArtifactPanel in the right panel', () => {
+    vi.useFakeTimers();
     render(<App />);
-    expect(screen.getByLabelText('Love note artifact panel')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.getByLabelText('Sovereignty mode')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('shows Start Conversation button when idle', () => {
@@ -119,57 +126,68 @@ describe('WebSocket event wiring', () => {
     });
   }
 
-  it('updates avatar to listening on partial transcript', () => {
+  it('updates status to listening on partial transcript', () => {
     connectApp();
     act(() => {
       capturedHandlers.onPartialTranscript('hello');
     });
-    expect(screen.getByRole('img', { name: /listening/i })).toBeInTheDocument();
+    expect(screen.getByText(/Hearing you/i)).toBeInTheDocument();
   });
 
-  it('updates avatar to thinking on final transcript', () => {
+  it('updates status to thinking on final transcript', () => {
     connectApp();
     act(() => {
       capturedHandlers.onFinalTranscript('hello world');
     });
-    expect(screen.getByRole('img', { name: /thinking/i })).toBeInTheDocument();
+    expect(screen.getByText(/Thinking/i)).toBeInTheDocument();
   });
 
-  it('updates avatar to speaking on TTS start', () => {
+  it('updates status to speaking on TTS start', () => {
     connectApp();
     act(() => {
       capturedHandlers.onTTSStart();
     });
-    expect(screen.getByRole('img', { name: /speaking/i })).toBeInTheDocument();
+    expect(screen.getByText(/Speaking/i)).toBeInTheDocument();
   });
 
-  it('updates avatar back to idle on TTS end', () => {
+  it('updates status back to idle on TTS end', async () => {
+    vi.useFakeTimers();
     connectApp();
     act(() => {
       capturedHandlers.onTTSStart();
     });
+    // App.tsx uses a poller for audioManager.isPlaying().
+    // We need to advance timers and ensure mockIsPlaying returns false.
+    // mockIsPlaying defaults to false.
+
     act(() => {
       capturedHandlers.onTTSEnd();
     });
-    expect(screen.getByRole('img', { name: /idle/i })).toBeInTheDocument();
+
+    // onTTSEnd starts a poller requestAnimationFrame.
+    // We need to advance time for the poller to run.
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    // Status should revert to Listening
+    expect(screen.getByText(/Listening — speak now/i)).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
-  it('updates note draft and tags on noteDraft event', () => {
+  it('updates note draft on noteDraft event', () => {
+    vi.useFakeTimers();
     connectApp();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
     act(() => {
       capturedHandlers.onNoteDraftUpdate('My love note', ['sweet', 'romantic']);
     });
     expect(screen.getByText('My love note')).toBeInTheDocument();
-    expect(screen.getByText('#sweet')).toBeInTheDocument();
-    expect(screen.getByText('#romantic')).toBeInTheDocument();
-  });
-
-  it('updates tone label on style event', () => {
-    connectApp();
-    act(() => {
-      capturedHandlers.onStyleUpdate('flirty');
-    });
-    expect(screen.getByText('flirty')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('plays audio chunks through AudioManager', () => {
@@ -207,18 +225,19 @@ describe('Refinement and copy', () => {
     });
   }
 
-  it('sends refinement request when refinement button is clicked', () => {
-    connectAndCompose();
-    fireEvent.click(screen.getByText('Make it shorter'));
-    expect(mockSendRefinement).toHaveBeenCalledWith({ type: 'shorter' });
-  });
-
   it('copies note to clipboard when Copy is clicked', () => {
+    vi.useFakeTimers();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
     connectAndCompose();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
     fireEvent.click(screen.getByLabelText('Copy note to clipboard'));
     expect(writeText).toHaveBeenCalledWith('A love note');
+    vi.useRealTimers();
   });
 });
