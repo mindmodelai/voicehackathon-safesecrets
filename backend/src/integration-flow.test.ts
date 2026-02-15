@@ -131,6 +131,7 @@ function createMockAgent(output?: Partial<StructuredOutput>) {
     spokenResponse: 'Tell me more.',
     noteDraft: '',
     tags: [],
+    phoneme: 'AHAA',
   };
   const merged = { ...defaultOutput, ...output };
   return {
@@ -155,6 +156,7 @@ describe('Integration: Full conversation flow', () => {
       spokenResponse: 'Who is this note for?',
       noteDraft: '',
       tags: [],
+      phoneme: 'AHAA',
     };
     // Compose stage agent
     const composeOutput: StructuredOutput = {
@@ -162,6 +164,7 @@ describe('Integration: Full conversation flow', () => {
       spokenResponse: 'Here is your love note!',
       noteDraft: 'Roses are red, violets are blue...',
       tags: ['#romantic', '#sweet'],
+      phoneme: 'AHAA',
     };
     // Refine stage agent
     const refineOutput: StructuredOutput = {
@@ -169,6 +172,7 @@ describe('Integration: Full conversation flow', () => {
       spokenResponse: 'Made it shorter!',
       noteDraft: 'Roses are red...',
       tags: ['#short'],
+      phoneme: 'AHAA',
     };
 
     let callCount = 0;
@@ -256,13 +260,14 @@ describe('Integration: Full conversation flow', () => {
       spokenResponse: 'A long spoken response for TTS.',
       noteDraft: 'A note',
       tags: ['#test'],
+      phoneme: 'AHAA',
     };
     const agent = createMockAgent(output);
 
     const { adapter: transcribe, triggerFinal } = createTranscribeWithCallback();
 
     // Create a Polly that takes time to synthesize (simulates streaming)
-    let synthesizeResolve: (() => void) | null = null;
+    let synthesizeResolve: (() => void) | undefined;
     const polly = createMockPollySimple();
     const originalSynthesize = polly.synthesize.bind(polly);
     polly.synthesize = vi.fn().mockImplementation(
@@ -319,7 +324,9 @@ describe('Integration: Full conversation flow', () => {
     expect(polly.stop).toHaveBeenCalled();
 
     // Resolve the pending synthesis so the test can clean up
-    if (synthesizeResolve) synthesizeResolve();
+    if (synthesizeResolve) {
+      synthesizeResolve();
+    }
     await new Promise((r) => setTimeout(r, 100));
 
     client.close();

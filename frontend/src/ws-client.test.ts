@@ -79,6 +79,9 @@ function setupHandlers(): { handlers: WSClientEvents; calls: Record<string, unkn
     onTTSStart: track('onTTSStart'),
     onTTSEnd: track('onTTSEnd'),
     onAudioChunk: track('onAudioChunk'),
+    onAssistantResponse: track('onAssistantResponse'),
+    onModeChanged: track('onModeChanged'),
+    onConversationEnded: track('onConversationEnded'),
     onError: track('onError'),
   };
 
