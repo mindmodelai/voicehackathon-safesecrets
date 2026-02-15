@@ -3,6 +3,7 @@ import { HeartAvatar } from './components/HeartAvatar';
 import { ArtifactPanel } from './components/ArtifactPanel';
 import { VideoFrame } from './components/VideoFrame';
 import { Header } from './components/Header';
+import { AboutModal } from './components/AboutModal';
 import { createAvatarStateMachine } from './avatar-state-machine';
 import { createWSClient } from './ws-client';
 import { createAudioManager } from './audio-manager';
@@ -21,8 +22,11 @@ export function App() {
   const [errorText, setErrorText] = useState('');
   const [assistantResponse, setAssistantResponse] = useState('');
   const [conversationStage, setConversationStage] = useState('collect');
-  const [sovereigntyMode, setSovereigntyMode] = useState<SovereigntyMode>('full_canada');
+  const [sovereigntyMode, setSovereigntyMode] = useState<SovereigntyMode>('full_us');
   const [showAbout, setShowAbout] = useState(false);
+  const [conversationActive, setConversationActive] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [llmOutput, setLlmOutput] = useState<{ phoneme?: string; style?: string; noteDraft?: string; tags?: string[]; stage?: string; spokenResponse?: string } | null>(null);
 
   const stateMachineRef = useRef(createAvatarStateMachine());
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
@@ -30,6 +34,7 @@ export function App() {
   const sovereigntyModeRef = useRef<SovereigntyMode>(sovereigntyMode);
 
   const notepadVideoRef = useRef<HTMLVideoElement>(null);
+  const reverseRafRef = useRef<number>(0);
 
   // Freeze notepad video at first frame once loaded
   const handleNotepadLoaded = useCallback(() => {
@@ -40,9 +45,43 @@ export function App() {
     }
   }, []);
 
+  // Play notepad video forward, freeze on last frame
+  const playNotepadForward = useCallback(() => {
+    const v = notepadVideoRef.current;
+    if (!v) return;
+    cancelAnimationFrame(reverseRafRef.current);
+    v.currentTime = 0;
+    v.play().catch(() => {});
+    const onEnded = () => {
+      v.pause();
+      v.removeEventListener('ended', onEnded);
+    };
+    v.addEventListener('ended', onEnded);
+  }, []);
+
+  // Play notepad video in reverse using requestAnimationFrame
+  const playNotepadReverse = useCallback(() => {
+    const v = notepadVideoRef.current;
+    if (!v) return;
+    v.pause();
+    const step = () => {
+      if (v.currentTime <= 0.05) {
+        v.currentTime = 0;
+        v.pause();
+        return;
+      }
+      v.currentTime = Math.max(0, v.currentTime - 0.04);
+      reverseRafRef.current = requestAnimationFrame(step);
+    };
+    reverseRafRef.current = requestAnimationFrame(step);
+  }, []);
+
   const handleStartConversation = useCallback(() => {
     setStatusText('Connecting...');
     setErrorText('');
+    setConversationActive(true);
+    setIsConnecting(true);
+    playNotepadForward();
 
     const sm = stateMachineRef.current;
     const audio = audioManagerRef.current;
@@ -55,9 +94,11 @@ export function App() {
       }).then(() => {
         setAvatarState('idle');
         setStatusText('🎙️ Listening — speak now');
+        setIsConnecting(false);
       }).catch((err) => {
         setErrorText(`Mic error: ${err.message}`);
         setStatusText('');
+        setIsConnecting(false);
       });
       return;
     }
@@ -67,17 +108,17 @@ export function App() {
         setIsConnected(true);
         setStatusText('Starting conversation...');
         // Send the selected sovereignty mode before starting the conversation
-        if (sovereigntyModeRef.current !== 'full_canada') {
-          client.sendMode(sovereigntyModeRef.current);
-        }
+        client.sendMode(sovereigntyModeRef.current);
         client.sendControl('start_conversation');
         audio.startCapture((chunk) => {
           client.sendAudio(chunk, 16000);
         }).then(() => {
           setStatusText('🎙️ Listening — speak now');
+          setIsConnecting(false);
         }).catch((err) => {
           setErrorText(`Mic error: ${err.message}`);
           setStatusText('');
+          setIsConnecting(false);
         });
       },
       onStyleUpdate: (style) => {
@@ -121,10 +162,11 @@ export function App() {
         setAvatarState('thinking');
         setStatusText('🤔 Thinking...');
       },
-      onAssistantResponse: (text, stage) => {
+      onAssistantResponse: (text, stage, extra) => {
         setAssistantResponse(text);
         setConversationStage(stage);
-        setTranscriptLog((prev) => [...prev, `🤖 ${text}`]);
+        setTranscriptLog((prev) => [...prev, `[ai] ${text}`]);
+        setLlmOutput({ phoneme: extra?.phoneme, style: extra?.style, noteDraft: extra?.noteDraft, tags: extra?.tags, stage, spokenResponse: text });
       },
       onModeChanged: (mode) => {
         setSovereigntyMode(mode);
@@ -146,7 +188,7 @@ export function App() {
 
     wsClientRef.current = client;
     client.connect(WS_URL);
-  }, []);
+  }, [playNotepadForward]);
 
   const handleModeChange = useCallback((mode: SovereigntyMode) => {
     setSovereigntyMode(mode);
@@ -164,9 +206,15 @@ export function App() {
     setStatusText('Conversation ended. Press Start to begin a new one.');
     setPartialTranscript('');
     setConversationStage('collect');
-  }, []);
+    setConversationActive(false);
+    setIsConnecting(false);
+    playNotepadReverse();
+  }, [playNotepadReverse]);
 
   const showStartButton = !isConnected || avatarState === 'idle';
+
+  // Button state: connecting → end conversation → start conversation
+  const buttonState = isConnecting ? 'connecting' : (showStartButton ? 'start' : 'end');
 
   return (
     <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 24px 24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
@@ -197,8 +245,8 @@ export function App() {
                 objectFit: 'cover',
                 borderRadius: '16px',
                 zIndex: 0,
-                transform: 'scaleX(-1)',
                 overflow: 'hidden',
+                pointerEvents: 'none',
               }}
             />
             {/* Artifact content overlays on top of the video */}
@@ -206,18 +254,28 @@ export function App() {
               <ArtifactPanel
                 sovereigntyMode={sovereigntyMode}
                 onModeChange={handleModeChange}
+                isActive={conversationActive}
               />
             </div>
           </div>
 
           {/* Button below the notepad — toggles between Start / End */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            {showStartButton ? (
+            {buttonState === 'connecting' ? (
+              <button
+                className="app__start-button"
+                disabled
+                data-testid="connecting-button"
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#999', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'not-allowed', width: 'calc(100% - 30px)', opacity: 0.7 }}
+              >
+                Connecting…
+              </button>
+            ) : buttonState === 'start' ? (
               <button
                 className="app__start-button"
                 onClick={handleStartConversation}
                 data-testid="start-conversation-button"
-                style={{ padding: '12px 28px', fontSize: '1rem', background: '#DC143C', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: '100%' }}
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#DC143C', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: 'calc(100% - 30px)' }}
               >
                 Start Conversation
               </button>
@@ -226,7 +284,7 @@ export function App() {
                 className="app__end-button"
                 onClick={handleEndConversation}
                 data-testid="end-conversation-button"
-                style={{ padding: '12px 28px', fontSize: '1rem', background: '#666', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: '100%' }}
+                style={{ padding: '12px 28px', fontSize: '1rem', background: '#666', color: '#fff', border: 'none', borderRadius: '24px', cursor: 'pointer', width: 'calc(100% - 30px)' }}
               >
                 End Conversation
               </button>
@@ -239,26 +297,47 @@ export function App() {
           <VideoFrame />
 
           {/* ── BOTTOM ROW under video: Spoken response (left) + Conversation flow (right) ── */}
-          <div style={{ display: 'flex', gap: '16px', flex: '1' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
-            {/* Sub-column 1: Assistant spoken response */}
+            {/* Sub-column 1: LLM Phoneme Signaling */}
             <div data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '8px', background: '#e8eaf6', padding: '16px 20px', borderRadius: '12px', border: '1px solid #c5cae9', minHeight: '150px' }}>
               <div style={{ fontSize: '0.8rem', color: '#7986cb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                💬 Spoken Response {conversationStage && `(${conversationStage})`}
+                🎬 LLM Phoneme Signaling
               </div>
-              <div data-testid="assistant-response" style={{
+              <div data-testid="llm-output" style={{
                 flex: '1',
-                fontSize: '1rem',
+                fontSize: '0.88rem',
                 lineHeight: '1.6',
                 color: '#1a237e',
                 whiteSpace: 'pre-wrap',
               }}>
-                {assistantResponse || <span style={{ color: '#9fa8da', fontStyle: 'italic' }}>The assistant's spoken response will appear here...</span>}
+                {llmOutput ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div><span style={{ color: '#7986cb', fontSize: '0.78rem' }}>phoneme:</span> <span style={{ fontWeight: 700, fontSize: '1.05rem' }}>{llmOutput.phoneme ?? '—'}</span></div>
+                    {llmOutput.spokenResponse && (
+                      <div style={{ fontSize: '0.8rem', color: '#3949ab', fontStyle: 'italic' }}>
+                        "{llmOutput.spokenResponse.split(/[.!?]/)[0].trim()}…"
+                      </div>
+                    )}
+                    <div><span style={{ color: '#7986cb', fontSize: '0.78rem' }}>style:</span> {llmOutput.style ?? '—'} <span style={{ color: '#9fa8da', fontSize: '0.7rem' }}>(LLM-chosen)</span></div>
+                    <div><span style={{ color: '#7986cb', fontSize: '0.78rem' }}>Mastra Workflow Checkpoint:</span> {llmOutput.stage ?? '—'}</div>
+                    {llmOutput.tags && llmOutput.tags.length > 0 && (
+                      <div><span style={{ color: '#7986cb', fontSize: '0.78rem' }}>tags:</span> {llmOutput.tags.join(', ')}</div>
+                    )}
+                    {llmOutput.noteDraft && (
+                      <div style={{ marginTop: '4px', padding: '8px', background: 'rgba(121,134,203,0.08)', borderRadius: '6px', fontSize: '0.82rem' }}>
+                        <span style={{ color: '#7986cb', fontSize: '0.78rem' }}>noteDraft:</span><br />{llmOutput.noteDraft}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ color: '#9fa8da', fontStyle: 'italic' }}>Bedrock structured output will appear here...</span>
+                )}
               </div>
             </div>
 
             {/* Sub-column 2: Conversation flow — avatar, status, transcript */}
-            <div data-testid="left-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: '#fce4ec', padding: '16px 20px', borderRadius: '12px', border: '1px solid #f8bbd0', minHeight: '150px' }}>
+            <div data-testid="left-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '12px', background: '#fce4ec', padding: '16px 20px', borderRadius: '12px', border: '1px solid #f8bbd0', minHeight: '150px' }}>
               <HeartAvatar avatarState={avatarState} speakingStyle={speakingStyle} />
 
               {statusText && (
@@ -281,9 +360,16 @@ export function App() {
 
               {transcriptLog.length > 0 && (
                 <div data-testid="transcript-log" style={{ width: '100%', maxHeight: '200px', overflowY: 'auto', fontSize: '0.8rem', color: '#666', background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
-                  {transcriptLog.map((line, i) => (
-                    <div key={i} style={{ marginBottom: '4px', color: line.startsWith('You:') ? '#333' : '#888' }}>{line}</div>
-                  ))}
+                  {transcriptLog.map((line, i) => {
+                    const isAi = line.startsWith('[ai] ');
+                    const isUser = line.startsWith('You:');
+                    return (
+                      <div key={i} style={{ marginBottom: '4px', color: isUser ? '#333' : '#888', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                        {isAi && <img src="/logos/favicon-16.png" alt="" width={16} height={16} style={{ marginTop: '1px', flexShrink: 0 }} />}
+                        <span>{isAi ? line.slice(5) : line}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -293,59 +379,7 @@ export function App() {
 
       </div>
 
-      {/* About modal */}
-      {showAbout && (
-        <div
-          onClick={() => setShowAbout(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '40px 60px',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#fff',
-              borderRadius: '16px',
-              padding: '40px',
-              maxWidth: '100%',
-              width: '100%',
-              maxHeight: '100%',
-              overflowY: 'auto',
-              position: 'relative',
-            }}
-          >
-            <button
-              onClick={() => setShowAbout(false)}
-              aria-label="Close about dialog"
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '20px',
-                background: 'none',
-                border: 'none',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                color: '#888',
-              }}
-            >
-              ✕
-            </button>
-            <h2 style={{ fontFamily: "'Handlee', cursive", fontSize: '2rem', color: '#DC143C', marginBottom: '16px' }}>About SafeSecrets</h2>
-            <p style={{ lineHeight: 1.7, color: '#444', fontSize: '1rem' }}>
-              SafeSecrets is an AI-powered love note assistant built for the Waterloo Voice Hackathon.
-              Speak your feelings and let AI help you craft the perfect message — with full data sovereignty controls
-              so you choose where your data lives.
-            </p>
-          </div>
-        </div>
-      )}
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
     </div>
   );
 }
