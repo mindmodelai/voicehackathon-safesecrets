@@ -206,6 +206,11 @@ body {
     padding: 10px 20px !important;
   }
 
+  .app__button-row {
+    width: 80% !important;
+    margin: 0 auto !important;
+  }
+
   .app__footer {
     display: block;
   }
