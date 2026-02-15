@@ -182,11 +182,10 @@ Bedrock tags the first phoneme of each spoken response, and the frontend plays t
 **Dynamic Service Routing**: Sovereignty mode determines regional endpoints for each service
 
 **Region Mapping**:
-- Full Canada: All services → ca-central-1
-- Canada + US Voice: Bedrock/Transcribe → ca-central-1, Polly → us-east-1
-- US Bedrock + Voice: All AWS services → us-east-1
-- Full US: Bedrock/Transcribe → us-east-1, TTS → Smallest.ai (external)
-- AWS-Free: LLM → OpenAI (GPT-4o-mini), STT/TTS → Smallest.ai (external)
+- All Canadian: All services → ca-central-1
+- All American: Bedrock/Transcribe → ca-central-1, Polly → us-east-1
+- All USA: All AWS services → us-east-1
+- AWS-Free (Smallest.ai): LLM → OpenAI (GPT-4o-mini), STT/TTS → Smallest.ai (external)
 
 **Adapter Instantiation**: Region-aware constructors accept region parameter, defaulting to ca-central-1
 
@@ -198,18 +197,16 @@ SafeSecrets offers four data residency configurations, allowing users to choose 
 
 | Mode | Bedrock | Transcribe | TTS Provider | TTS Region | TTS Engine |
 |------|---------|------------|-------------|------------|------------|
-| 🇨🇦 **Full Canada** | ca-central-1 | ca-central-1 | Polly | ca-central-1 | Neural |
-| 🇨🇦 **Canada + US Voice** | ca-central-1 | ca-central-1 | Polly | us-east-1 | Generative |
-| 🇺🇸 **US Bedrock + Voice** | us-east-1 | us-east-1 | Polly | us-east-1 | Generative |
-| 🇺🇸 **Full US + Smallest.ai** | us-east-1 | us-east-1 | Smallest.ai | N/A | Lightning v3.1 |
-| 🌐 **AWS-Free** | OpenAI (GPT-4o-mini) | Smallest.ai | Smallest.ai | N/A | Lightning v3.1 |
+| 🇨🇦 **All Canadian** | ca-central-1 | ca-central-1 | Polly | ca-central-1 | Neural |
+| 🇨🇦 **All American** | ca-central-1 | ca-central-1 | Polly | us-east-1 | Generative |
+| 🇺🇸 **All USA** | us-east-1 | us-east-1 | Polly | us-east-1 | Generative |
+| 🌐 **AWS-Free (Smallest.ai)** | OpenAI (GPT-4o-mini) | Smallest.ai | Smallest.ai | N/A | Lightning v3.1 |
 
 **Trade-offs**:
-- **Full Canada**: Complete data residency in Canada with high-quality Neural voice
-- **Canada + US Voice**: Canadian data processing with best-in-class Generative voice from US
-- **US Bedrock + Voice**: All AWS services in US for lowest latency
-- **Full US + Smallest.ai**: US processing with third-party expressive TTS
-- **AWS-Free**: No AWS credentials required, uses OpenAI LLM and Smallest.ai for STT/TTS
+- **All Canadian**: Complete data residency in Canada with high-quality Neural voice
+- **All American**: Canadian data processing with best-in-class Generative voice from US
+- **All USA**: All AWS services in US for lowest latency
+- **AWS-Free (Smallest.ai)**: No AWS credentials required, uses OpenAI LLM and Smallest.ai for STT/TTS
 
 ## Infrastructure
 
