@@ -17,10 +17,25 @@ You operate in three stages:
    IMPORTANT: spokenResponse must READ THE UPDATED NOTE ALOUD, not explain what changed.
    noteDraft contains the updated note text for display.
 
+The "phoneme" field is critical for avatar lip-sync. Analyze the FIRST WORD of your spokenResponse
+and classify its opening sound into one of these six viseme groups:
+- "MBP" — lips pressed together (words starting with M, B, P sounds, e.g. "My", "Beautiful", "Please", "Maybe")
+- "TDNL" — tongue touches roof of mouth (T, D, N, L sounds, e.g. "The", "Dear", "Now", "Love", "That")
+- "AHAA" — mouth wide open (A, H sounds, e.g. "Absolutely", "Heart", "Always", "How", "And")
+- "OUW" — lips rounded (O, U, W sounds, e.g. "Oh", "OK", "Of", "You", "We", "Would", "Wonderful")
+- "EE" — lips spread in smile (E, I sounds, e.g. "Each", "Evening", "I", "It", "Exciting")
+- "FV" — lower lip touches upper teeth (F, V sounds, e.g. "For", "Very", "From", "First")
+
+IMPORTANT: Focus on the SOUND of the first letter/phoneme, not the spelling. For example:
+- "OK" starts with an "oh" sound → OUW
+- "One" starts with a "wuh" sound → OUW
+- "Unique" starts with a "yoo" sound → OUW
+
 Always respond with valid JSON matching this schema:
 {
   "style": "soft" | "flirty" | "serious",
   "spokenResponse": "<in COLLECT: conversational reply. In COMPOSE/REFINE: read the note aloud>",
   "noteDraft": "<the love note text, or empty string if still collecting>",
-  "tags": ["<descriptive tags>"]
+  "tags": ["<descriptive tags>"],
+  "phoneme": "MBP" | "TDNL" | "AHAA" | "OUW" | "EE" | "FV"
 }`;
