@@ -1,30 +1,32 @@
 import {
   PollyClient,
   SynthesizeSpeechCommand,
+  type VoiceId,
+  type Engine,
 } from '@aws-sdk/client-polly';
 import type { Readable } from 'node:stream';
 
 const DEFAULT_REGION = 'ca-central-1';
-const DEFAULT_VOICE_ID = 'Joanna';
-const DEFAULT_ENGINE = 'neural';
+const DEFAULT_VOICE_ID = 'Joanna' as VoiceId;
+const DEFAULT_ENGINE = 'neural' as Engine;
 const DEFAULT_OUTPUT_FORMAT = 'pcm';
 const DEFAULT_SAMPLE_RATE = '16000';
 const CHUNK_SIZE = 4096;
 
 export interface PollyAdapterOptions {
   region?: string;
-  voiceId?: string;
-  engine?: 'neural' | 'generative';
+  voiceId?: VoiceId;
+  engine?: Engine;
 }
 
 export class PollyAdapter {
   private client: PollyClient;
-  private voiceId: string;
-  private engine: string;
+  private voiceId: VoiceId;
+  private engine: Engine;
   private region: string;
   private abortController: AbortController | null = null;
 
-  constructor(clientOrOptions?: PollyClient | PollyAdapterOptions, voiceId?: string) {
+  constructor(clientOrOptions?: PollyClient | PollyAdapterOptions, voiceId?: VoiceId) {
     if (clientOrOptions instanceof PollyClient) {
       // Legacy constructor: (client, voiceId)
       this.client = clientOrOptions;

@@ -83,8 +83,13 @@ export class WSClientImpl implements WSClient {
 
   sendControl(action: 'start_conversation' | 'end_conversation'): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    const msg: ClientMessage = { type: 'control', payload: { action } };
-    this.ws.send(JSON.stringify(msg));
+    if (action === 'start_conversation') {
+      const msg: ClientMessage = { type: 'control', payload: { action: 'start_conversation' } };
+      this.ws.send(JSON.stringify(msg));
+    } else {
+      const msg: ClientMessage = { type: 'control', payload: { action: 'end_conversation' } };
+      this.ws.send(JSON.stringify(msg));
+    }
   }
 
   sendRefinement(request: RefinementRequest): void {

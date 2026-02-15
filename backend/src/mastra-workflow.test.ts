@@ -11,6 +11,7 @@ function createMockAgent(responseObj?: Partial<StructuredOutput>) {
     spokenResponse: 'Tell me more about who this is for.',
     noteDraft: '',
     tags: [],
+    phoneme: 'AHAA',
   };
   const output = { ...defaultOutput, ...responseObj };
 
@@ -30,6 +31,7 @@ function createComposeAgent(): any {
     spokenResponse: 'Here is your love note!',
     noteDraft: 'Roses are red, violets are blue...',
     tags: ['#romantic', '#sweet'],
+    phoneme: 'AHAA',
   };
   return {
     id: 'test-agent',
@@ -182,6 +184,7 @@ describe('MastraWorkflowEngine', () => {
         spokenResponse: 'I made it shorter for you!',
         noteDraft: 'Roses are red...',
         tags: ['#short', '#sweet'],
+        phoneme: 'AHAA',
       };
       const agent = {
         id: 'test-agent',
@@ -226,6 +229,7 @@ describe('MastraWorkflowEngine', () => {
         spokenResponse: 'Made it bolder!',
         noteDraft: 'A bold love note',
         tags: ['#bold'],
+        phoneme: 'AHAA',
       };
       const agent = {
         id: 'test-agent',
