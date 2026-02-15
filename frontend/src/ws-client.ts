@@ -19,7 +19,7 @@ export interface WSClientEvents {
   onTTSStart: () => void;
   onTTSEnd: () => void;
   onAudioChunk: (chunk: ArrayBuffer) => void;
-  onAssistantResponse: (text: string, stage: string) => void;
+  onAssistantResponse: (text: string, stage: string, extra?: { phoneme?: string; style?: string; noteDraft?: string; tags?: string[] }) => void;
   onModeChanged: (mode: SovereigntyMode) => void;
   onConversationEnded: () => void;
   onError: (error: string) => void;
@@ -163,7 +163,12 @@ export class WSClientImpl implements WSClient {
         this.handlers.onTTSEnd?.();
         break;
       case 'assistant_response':
-        this.handlers.onAssistantResponse?.(message.data.text, message.data.stage);
+        this.handlers.onAssistantResponse?.(message.data.text, message.data.stage, {
+          phoneme: message.data.phoneme,
+          style: message.data.style,
+          noteDraft: message.data.noteDraft,
+          tags: message.data.tags,
+        });
         break;
       case 'mode_changed':
         this.handlers.onModeChanged?.(message.data.mode);

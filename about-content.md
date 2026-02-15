@@ -6,7 +6,7 @@
 
 **Development Cost**: Approximately 900 Kiro credits at $0.02 per credit (~$18.00 USD)
 
-**Development Environment**: Built using two Kiro instances with separate Kiro Plus accounts. These accounts operate under AWS IAM Identity Center management, providing enterprise-grade privacy controls and centralized identity governance. [Kiro integrates with AWS IAM Identity Center](https://docs.aws.amazon.com/singlesignon/latest/userguide/what-is.html) to enable secure workforce access management, ensuring development activities benefit from AWS's security infrastructure while maintaining data protection standards.
+**Development Environment**: Built using two Kiro instances with separate Kiro Plus accounts. These accounts operate under AWS IAM Identity Center management, providing enterprise-grade privacy controls and centralized identity governance. Offering reliable access to Opus 4.6 without rate limits and attractive pricing. [Kiro integrates with AWS IAM Identity Center](https://docs.aws.amazon.com/singlesignon/latest/userguide/what-is.html) to enable secure workforce access management, ensuring development activities benefit from AWS's security infrastructure while maintaining data protection standards.
 
 ### Visuals
 
@@ -33,6 +33,21 @@
 
 SafeSecrets uses [Mastra](https://mastra.ai) as its core orchestration framework, providing a structured workflow engine for managing multi-stage conversational AI interactions.
 
+### Custom Voice Provider
+
+**Implementation**: `SafeSecretsVoiceProvider extends MastraVoice`
+
+**Purpose**: Bridges Mastra's voice interface with AWS Transcribe (STT) and AWS Polly (TTS), and connects to the Mastra Agent's LLM (Amazon Bedrock — Claude 3 Haiku via `@ai-sdk/amazon-bedrock`) for structured conversational inference.
+
+**Methods**:
+- `listen(audioStream)`: Streams audio through Transcribe, returns final transcript
+- `speak(text)`: Synthesizes speech via Polly, returns audio stream
+- `stopSpeaking()`: Implements barge-in by aborting active TTS
+- `getSpeakers()`: Returns available voice IDs
+- `getListener()`: Returns STT availability status
+
+**Regional Configuration**: Pinned to ca-central-1 by default, configurable per sovereignty mode
+
 ### Mastra Workflow Engine
 
 **Framework**: `@mastra/core` with Agent and Workflow primitives
@@ -55,37 +70,28 @@ workflow
 - **Event Callbacks**: Real-time UI updates via `onStyleUpdate` and `onNoteDraftUpdate` hooks
 - **Context Preservation**: Immutable context fields during refinement stage (recipient, situation, tone, outcome)
 
-### Mastra Agent Integration
+### Phoneme-Based Avatar Video Selection
 
-**Agent Configuration**:
-- **ID**: `safesecrets-agent`
-- **Model**: Amazon Bedrock (Claude 3 Haiku) via `@ai-sdk/amazon-bedrock`
-- **Instructions**: Custom system prompt defining three-stage behavior and JSON response format
-- **Voice Provider**: Custom `SafeSecretsVoiceProvider` implementing Mastra's `MastraVoice` interface
+Bedrock tags the first phoneme of each spoken response, and the frontend plays the matching mouth-shape transition video before entering the speaking loop.
 
-**Structured Output**:
-- Enforced via Mastra's `structuredOutput` option with Zod schema
-- Automatic validation and retry on schema violations
-- Fields: `style`, `spokenResponse`, `noteDraft`, `tags`, plus optional context extraction fields
+**Phoneme Groups** (6 transition clips, 0.5s each):
+- **MBP**: Closed lips (e.g., "My", "Beautiful", "Please")
+- **TDNL**: Small open (e.g., "The", "Dear", "Now", "Love")
+- **AHAA**: Wide open (e.g., "A", "Heart", "Always")
+- **OUW**: Rounded (e.g., "Oh", "You", "We")
+- **EE**: Smile spread (e.g., "Each", "Evening")
+- **FV**: Teeth/lip contact (e.g., "For", "Very")
 
-### Custom Voice Provider
+**State Flow**:
+1. **Idle** → User starts speaking → **Listening**
+2. **Listening** → User finishes → Random **Thinking** segment (seek to random timestamp)
+3. **Thinking** → LLM responds with phoneme tag → **Phoneme Transition** (matching clip)
+4. **Phoneme Transition** → Seamlessly flows into → **Speaking Loop**
+5. **Speaking Loop** → Continues while TTS plays → Back to **Idle**
 
-**Implementation**: `SafeSecretsVoiceProvider extends MastraVoice`
+## AWS & Third-Party Service Adapters
 
-**Purpose**: Bridges Mastra's voice interface with AWS Transcribe (STT) and AWS Polly (TTS)
-
-**Methods**:
-- `listen(audioStream)`: Streams audio through Transcribe, returns final transcript
-- `speak(text)`: Synthesizes speech via Polly, returns audio stream
-- `stopSpeaking()`: Implements barge-in by aborting active TTS
-- `getSpeakers()`: Returns available voice IDs
-- `getListener()`: Returns STT availability status
-
-**Regional Configuration**: Pinned to ca-central-1 by default, configurable per sovereignty mode
-
-### AWS Service Adapters
-
-#### TranscribeAdapter
+### TranscribeAdapter
 **Purpose**: Real-time speech-to-text streaming
 
 **Features**:
@@ -100,7 +106,7 @@ workflow
 - Sample Rate: 16kHz PCM
 - Encoding: PCM (uncompressed)
 
-#### PollyAdapter
+### PollyAdapter
 **Purpose**: Neural and Generative text-to-speech synthesis
 
 **Features**:
@@ -114,33 +120,18 @@ workflow
 - Chunk Size: 4096 bytes for low-latency streaming
 - Engine selection based on sovereignty mode
 
-#### SmallestAdapter
+### SmallestAdapter
 **Purpose**: Third-party TTS via Smallest.ai Waves API
 
 **Features**:
-- Lightning v3.1 engine integration
-- Streaming PCM audio at 16kHz (matches AWS pipeline)
-- Configurable voice (default: Sophia) and speed (default: 1.25x)
+- Lightning v3.1 engine
+- Voice: Sophia at 1.25x speed (configurable 0.5x–2.0x)
 - Bearer token authentication via `SMALLEST_AI_API_KEY`
 - Abort controller for barge-in support
 
 **Configuration**:
 - Endpoint: `https://waves-api.smallest.ai/api/v1/lightning-v3.1/get_speech`
-- Sample Rate: 16kHz PCM
-- Speed Range: 0.5x–2.0x (default 1.25x)
-- Chunk Size: 4096 bytes
-
-**API Request Format**:
-```json
-{
-  "text": "<text to synthesize>",
-  "voice_id": "sophia",
-  "sample_rate": 16000,
-  "output_format": "pcm",
-  "speed": 1.25,
-  "language": "en"
-}
-```
+- Streaming PCM at 16kHz, 4096-byte chunks
 
 ### Prompt Engineering
 
@@ -199,68 +190,6 @@ workflow
 **Adapter Instantiation**: Region-aware constructors accept region parameter, defaulting to ca-central-1
 
 **IAM Permissions**: Single EC2 role with multi-region access to Bedrock, Transcribe, and Polly in both ca-central-1 and us-east-1
-
-## Speech-to-Text (STT)
-
-**Service**: AWS Transcribe Streaming
-
-**Regional Options**:
-- 🇨🇦 **ca-central-1** (Canada): Full Canada, Canada + US Voice modes
-- 🇺🇸 **us-east-1** (US): US Bedrock + Voice, Full US modes
-
-**Configuration**:
-- Language: English (US)
-- Sample Rate: 16kHz PCM
-- Streaming: Real-time partial and final transcripts
-
-## Inference
-
-**Service**: AWS Bedrock
-
-**Models**:
-- **Claude 3 Haiku**: `anthropic.claude-3-haiku-20240307-v1:0` (primary)
-- **Claude 3 Sonnet**: `anthropic.claude-3-sonnet-20240229-v1:0` (available)
-
-**Regional Options**:
-- 🇨🇦 **ca-central-1** (Canada): Full Canada, Canada + US Voice modes
-- 🇺🇸 **us-east-1** (US): US Bedrock + Voice, Full US modes
-
-**Features**:
-- Structured output with JSON schema enforcement
-- Conversation context management across workflow stages
-- Dynamic speaking style adaptation (soft, flirty, serious)
-- Multi-turn dialogue with memory
-
-## Text-to-Speech (TTS)
-
-### AWS Polly
-
-**Voice**: Joanna
-
-**Engine Options**:
-- **Neural**: Available in ca-central-1 (very high quality)
-- **Generative**: Available in us-east-1 (highest quality, most expressive)
-
-**Regional Configuration**:
-- 🇨🇦 **ca-central-1 (Neural)**: Full Canada mode
-- 🇺🇸 **us-east-1 (Generative)**: Canada + US Voice, US Bedrock + Voice modes
-
-**Output Format**: PCM audio at 16kHz, streamed in real-time
-
-### Smallest.ai (Waves API)
-
-**Service**: Lightning v3.1 TTS
-
-**Voice**: Sophia (default)
-
-**Configuration**:
-- Speed: 1.25x (configurable 0.5–2.0x)
-- Output: PCM audio at 16kHz
-- Streaming: 4KB chunks for low-latency playback
-
-**Availability**: Full US mode only
-
-**Endpoint**: `https://waves-api.smallest.ai/api/v1/lightning-v3.1/get_speech`
 
 ## Sovereignty Modes
 

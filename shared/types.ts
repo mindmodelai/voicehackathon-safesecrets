@@ -26,7 +26,7 @@ export interface SovereigntyModeConfig {
 
 export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> = {
   full_canada: {
-    label: '🇨🇦 Full Canada',
+    label: 'All Canadian',
     description: 'All services in ca-central-1 (Polly Neural)',
     bedrockRegion: 'ca-central-1',
     transcribeRegion: 'ca-central-1',
@@ -35,7 +35,7 @@ export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> =
     ttsProvider: 'polly',
   },
   canada_us_voice: {
-    label: '🇨🇦 Canada + US Voice',
+    label: 'All American',
     description: 'Bedrock & Transcribe in CA, Polly Generative in US',
     bedrockRegion: 'ca-central-1',
     transcribeRegion: 'ca-central-1',
@@ -44,7 +44,7 @@ export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> =
     ttsProvider: 'polly',
   },
   us_bedrock_voice: {
-    label: '🇺🇸 US Bedrock + Voice',
+    label: 'All USA',
     description: 'All services in us-east-1 (Polly Generative)',
     bedrockRegion: 'us-east-1',
     transcribeRegion: 'us-east-1',
@@ -53,8 +53,8 @@ export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> =
     ttsProvider: 'polly',
   },
   full_us: {
-    label: '🇺🇸 Full US + Smartest.ai',
-    description: 'US endpoints with Smartest.ai TTS (coming soon)',
+    label: 'Full US + Smallest.ai',
+    description: 'US endpoints with Smallest.ai TTS (coming soon)',
     bedrockRegion: 'us-east-1',
     transcribeRegion: 'us-east-1',
     pollyRegion: 'us-east-1',
@@ -65,11 +65,14 @@ export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> =
 
 // ── Structured Output (Bedrock LLM response contract) ──
 
+export type Phoneme = 'MBP' | 'TDNL' | 'AHAA' | 'OUW' | 'EE' | 'FV';
+
 export interface StructuredOutput {
   style: SpeakingStyle;
   spokenResponse: string;
   noteDraft: string;
   tags: string[];
+  phoneme: Phoneme;
 }
 
 // ── Refinement ──
@@ -119,7 +122,7 @@ export type ServerMessage =
   | { type: 'event'; event: 'tts.end' }
   | { type: 'audio'; payload: { data: ArrayBuffer } }
   | { type: 'event'; event: 'error'; data: { message: string } }
-  | { type: 'event'; event: 'assistant_response'; data: { text: string; stage: string } }
+  | { type: 'event'; event: 'assistant_response'; data: { text: string; stage: string; phoneme?: Phoneme; style?: SpeakingStyle; noteDraft?: string; tags?: string[] } }
   | { type: 'event'; event: 'mode_changed'; data: { mode: SovereigntyMode } }
   | { type: 'event'; event: 'conversation_ended' };
 

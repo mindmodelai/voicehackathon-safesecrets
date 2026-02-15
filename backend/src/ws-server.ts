@@ -12,6 +12,7 @@ import { MastraWorkflowEngine } from './mastra-workflow.js';
 import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
 
 import { SmallestAdapter } from './smallest-adapter.js';
+import { SmallestSTTAdapter } from './smallest-stt-adapter.js';
 
 // ── Constants ──
 
@@ -31,6 +32,7 @@ export interface SessionResources {
   idleTimer: ReturnType<typeof setTimeout> | null;
   sovereigntyMode: SovereigntyMode;
   smallestAdapter: SmallestAdapter | null;
+  smallestSTTAdapter: SmallestSTTAdapter | null;
 }
 
 // ── Helpers ──
@@ -182,8 +184,9 @@ export class SafeSecretsWSServer {
       context: null,
       isActive: true,
       idleTimer: null,
-      sovereigntyMode: 'full_canada',
+      sovereigntyMode: 'full_us',
       smallestAdapter: null,
+      smallestSTTAdapter: null,
     };
 
     this.sessions.set(sessionId, session);
@@ -244,14 +247,19 @@ export class SafeSecretsWSServer {
       return;
     }
 
-    const chunk: AudioChunk = {
-      data: Buffer.from(payload.data),
-      sampleRate: payload.sampleRate,
-      encoding: 'pcm',
-    };
+    const buffer = Buffer.from(payload.data);
 
     try {
-      session.transcribeAdapter.feedAudio(session.sessionId, chunk);
+      if (session.sovereigntyMode === 'full_us' && session.smallestSTTAdapter) {
+        session.smallestSTTAdapter.feedAudio(session.sessionId, { data: buffer });
+      } else {
+        const chunk: AudioChunk = {
+          data: buffer,
+          sampleRate: payload.sampleRate,
+          encoding: 'pcm',
+        };
+        session.transcribeAdapter.feedAudio(session.sessionId, chunk);
+      }
     } catch (err) {
       console.error(`[WSServer] Error feeding audio for session ${session.sessionId}:`, err);
       sendMessage(session.ws, {
@@ -295,14 +303,19 @@ export class SafeSecretsWSServer {
   private async startConversation(session: SessionResources): Promise<void> {
     const { sessionId, ws, transcribeAdapter, mastraWorkflow, pollyAdapter } = session;
 
+    const useSmallestSTT = session.sovereigntyMode === 'full_us' && session.smallestSTTAdapter;
+
     // Log pipeline settings
+    const sttProvider = useSmallestSTT
+      ? 'Smallest.ai Pulse STT'
+      : `Amazon Transcribe — region: ${transcribeAdapter.getRegion()}`;
     const ttsProvider = (session.sovereigntyMode === 'full_us' && session.smallestAdapter)
       ? `Smallest.ai (voice: ${session.smallestAdapter.getVoiceId()})`
       : `Polly ${pollyAdapter.getEngine()} (voice: ${pollyAdapter.getVoiceId()}, region: ${pollyAdapter.getRegion()})`;
     console.log([
       `[WSServer] ▶ Starting conversation`,
       `  Mode:  ${session.sovereigntyMode}`,
-      `  STT:   Amazon Transcribe — region: ${transcribeAdapter.getRegion()}`,
+      `  STT:   ${sttProvider}`,
       `  LLM:   ${mastraWorkflow.getModelId()} — region: ${mastraWorkflow.getRegion()}`,
       `  TTS:   ${ttsProvider}`,
     ].join('\n'));
@@ -312,34 +325,34 @@ export class SafeSecretsWSServer {
       const context = mastraWorkflow.createSession(sessionId);
       session.context = context;
 
-      // Start Transcribe stream with callbacks that forward events to the client
+      // Start STT stream with callbacks that forward events to the client
       let speakingNotified = false;
 
-      await transcribeAdapter.startStream(
-        sessionId,
-        // onPartial
-        (text: string) => {
-          if (!speakingNotified) {
-            sendMessage(ws, { type: 'event', event: 'user_speaking_start' });
-            speakingNotified = true;
+      const onPartial = (text: string) => {
+        if (!speakingNotified) {
+          sendMessage(ws, { type: 'event', event: 'user_speaking_start' });
+          speakingNotified = true;
 
-            // Barge-in: if Polly is currently synthesizing, stop it immediately
-            if (pollyAdapter.isSynthesizing()) {
-              pollyAdapter.stop();
-              sendMessage(ws, { type: 'event', event: 'tts.end' });
-            }
+          // Barge-in: if TTS is currently synthesizing, stop it immediately
+          if (pollyAdapter.isSynthesizing()) {
+            pollyAdapter.stop();
+            sendMessage(ws, { type: 'event', event: 'tts.end' });
           }
-          sendMessage(ws, { type: 'event', event: 'partial_transcript', data: { text } });
-        },
-        // onFinal
-        (text: string) => {
-          speakingNotified = false;
-          sendMessage(ws, { type: 'event', event: 'final_transcript', data: { text } });
+        }
+        sendMessage(ws, { type: 'event', event: 'partial_transcript', data: { text } });
+      };
 
-          // Process the transcript through the Mastra workflow
-          this.processTranscript(session, text);
-        },
-      );
+      const onFinal = (text: string) => {
+        speakingNotified = false;
+        sendMessage(ws, { type: 'event', event: 'final_transcript', data: { text } });
+        this.processTranscript(session, text);
+      };
+
+      if (useSmallestSTT) {
+        await session.smallestSTTAdapter!.startStream(sessionId, onPartial, onFinal);
+      } else {
+        await transcribeAdapter.startStream(sessionId, onPartial, onFinal);
+      }
     } catch (err) {
       console.error(`[WSServer] Failed to start conversation for session ${sessionId}:`, err);
       sendMessage(ws, {
@@ -353,15 +366,25 @@ export class SafeSecretsWSServer {
   private async processTranscript(session: SessionResources, transcript: string): Promise<void> {
     if (!session.isActive || !session.context) return;
 
+    console.log(`[WSServer] Processing transcript: "${transcript}"`);
+
     try {
       const result = await session.mastraWorkflow.processTranscript(session.sessionId, transcript);
+      console.log(`[WSServer] Bedrock result received — spokenResponse length: ${result.spokenResponse?.length ?? 0}`);
 
       // Send the assistant's text response to the client for display
       if (result.spokenResponse) {
         sendMessage(session.ws, {
           type: 'event',
           event: 'assistant_response',
-          data: { text: result.spokenResponse, stage: result.stage ?? 'collect' },
+          data: {
+            text: result.spokenResponse,
+            stage: result.stage ?? 'collect',
+            phoneme: result.structuredOutput?.phoneme,
+            style: result.structuredOutput?.style,
+            noteDraft: result.structuredOutput?.noteDraft,
+            tags: result.structuredOutput?.tags,
+          },
         });
         await this.synthesizeAndStream(session, result.spokenResponse);
       }
@@ -398,7 +421,14 @@ export class SafeSecretsWSServer {
         sendMessage(session.ws, {
           type: 'event',
           event: 'assistant_response',
-          data: { text: result.spokenResponse, stage: result.stage ?? 'refine' },
+          data: {
+            text: result.spokenResponse,
+            stage: result.stage ?? 'refine',
+            phoneme: result.structuredOutput?.phoneme,
+            style: result.structuredOutput?.style,
+            noteDraft: result.structuredOutput?.noteDraft,
+            tags: result.structuredOutput?.tags,
+          },
         });
         await this.synthesizeAndStream(session, result.spokenResponse);
       }
@@ -436,8 +466,10 @@ export class SafeSecretsWSServer {
 
     try {
       if (session.sovereigntyMode === 'full_us' && session.smallestAdapter) {
+        console.log(`[WSServer] TTS via Smallest.ai for session ${session.sessionId}`);
         await session.smallestAdapter.synthesize(text, onChunk);
       } else {
+        console.log(`[WSServer] TTS via Polly for session ${session.sessionId}`);
         await session.pollyAdapter.synthesize(text, onChunk);
       }
     } catch (err) {
@@ -483,8 +515,10 @@ export class SafeSecretsWSServer {
         return;
       }
       session.smallestAdapter = new SmallestAdapter(apiKey, 'sophia');
+      session.smallestSTTAdapter = new SmallestSTTAdapter(apiKey);
     } else {
       session.smallestAdapter = null;
+      session.smallestSTTAdapter = null;
     }
 
     // Recreate adapters with new region config
@@ -516,10 +550,13 @@ export class SafeSecretsWSServer {
     const ttsDesc = config.ttsProvider === 'smartest_ai'
       ? `Smallest.ai (voice: ${session.smallestAdapter?.getVoiceId()})`
       : `Polly ${session.pollyAdapter.getEngine()} (voice: ${session.pollyAdapter.getVoiceId()}, region: ${session.pollyAdapter.getRegion()})`;
+    const sttDesc = config.ttsProvider === 'smartest_ai'
+      ? 'Smallest.ai Pulse STT'
+      : `Amazon Transcribe — region: ${session.transcribeAdapter.getRegion()}`;
     console.log([
       `[WSServer] 🔄 Mode switched`,
       `  Mode:  ${mode}`,
-      `  STT:   Amazon Transcribe — region: ${session.transcribeAdapter.getRegion()}`,
+      `  STT:   ${sttDesc}`,
       `  LLM:   ${session.mastraWorkflow.getModelId()} — region: ${session.mastraWorkflow.getRegion()}`,
       `  TTS:   ${ttsDesc}`,
     ].join('\n'));
@@ -550,13 +587,15 @@ export class SafeSecretsWSServer {
   // ── Cleanup ──
 
   private async stopSessionStreams(session: SessionResources): Promise<void> {
-    // Stop Transcribe stream
+    // Stop STT stream (Transcribe or Smallest)
     try {
-      if (session.transcribeAdapter.hasActiveStream(session.sessionId)) {
+      if (session.sovereigntyMode === 'full_us' && session.smallestSTTAdapter?.hasActiveStream(session.sessionId)) {
+        await session.smallestSTTAdapter.stopStream(session.sessionId);
+      } else if (session.transcribeAdapter.hasActiveStream(session.sessionId)) {
         await session.transcribeAdapter.stopStream(session.sessionId);
       }
     } catch (err) {
-      console.error(`[WSServer] Error stopping Transcribe for session ${session.sessionId}:`, err);
+      console.error(`[WSServer] Error stopping STT for session ${session.sessionId}:`, err);
     }
 
     // Stop Polly synthesis
