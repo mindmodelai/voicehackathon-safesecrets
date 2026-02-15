@@ -20,7 +20,7 @@ export function App() {
   const [errorText, setErrorText] = useState('');
   const [assistantResponse, setAssistantResponse] = useState('');
   const [conversationStage, setConversationStage] = useState('collect');
-  const [sovereigntyMode, setSovereigntyMode] = useState<SovereigntyMode>('full_us');
+  const [sovereigntyMode, setSovereigntyMode] = useState<SovereigntyMode>('full_canada');
   const [showAbout, setShowAbout] = useState(false);
   const [conversationActive, setConversationActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -58,7 +58,7 @@ export function App() {
   const stateMachineRef = useRef(createAvatarStateMachine());
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
   const audioManagerRef = useRef(createAudioManager());
-  const sovereigntyModeRef = useRef<SovereigntyMode>(sovereigntyMode);
+  const sovereigntyModeRef = useRef<SovereigntyMode>('full_canada');
 
   const notepadVideoRef = useRef<HTMLVideoElement>(null);
   const notepadBackVideoRef = useRef<HTMLVideoElement>(null);

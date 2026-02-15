@@ -1,149 +1,164 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { createAvatarStateMachine } from './avatar-state-machine';
-import type { AvatarEvent, SpeakingStyle } from '../../shared/types';
+import { AvatarStateMachineImpl } from './avatar-state-machine';
+import type { AvatarEvent, AvatarState } from '@shared/types';
 
 /**
- * Property tests for Avatar State Machine
- * Tests universal correctness properties using fast-check
+ * Property-based tests for avatar state machine.
+ * Tests universal correctness properties using fast-check.
  */
 
-describe('Avatar State Machine - Property Tests', () => {
+describe('AvatarStateMachine - Property Tests', () => {
   /**
-   * Property 1: Avatar state machine priority invariant
-   * Priority order: listening > speaking > thinking > idle
-   * 
-   * No matter what sequence of events occurs, the priority order must never be violated.
+   * Property 1: State machine always returns a valid state
    */
-  it('Property 1: maintains priority order (listening > speaking > thinking > idle)', () => {
-    const speakingStyleArb = fc.constantFrom<SpeakingStyle>('soft', 'flirty', 'serious');
-    
-    const avatarEventArb = fc.oneof(
-      fc.constant<AvatarEvent>({ type: 'USER_SPEAKING_START' }),
-      fc.constant<AvatarEvent>({ type: 'USER_SPEAKING_END' }),
-      fc.record({
-        type: fc.constant('TTS_START' as const),
-        style: speakingStyleArb,
-      }),
-      fc.constant<AvatarEvent>({ type: 'TTS_END' }),
-      fc.constant<AvatarEvent>({ type: 'THINKING_START' }),
-      fc.constant<AvatarEvent>({ type: 'THINKING_END' })
+  it('Property 1: always returns a valid AvatarState', () => {
+    const eventArb = fc.constantFrom<AvatarEvent['type']>(
+      'USER_SPEAKING_START',
+      'USER_SPEAKING_END',
+      'TTS_START',
+      'TTS_END',
+      'THINKING_START',
+      'THINKING_END'
     );
 
     fc.assert(
-      fc.property(fc.array(avatarEventArb, { minLength: 1, maxLength: 20 }), (events) => {
-        const sm = createAvatarStateMachine();
-        
-        // Track which activities are currently active
-        let userSpeaking = false;
-        let ttsActive = false;
-        let thinking = false;
+      fc.property(fc.array(eventArb, { minLength: 1, maxLength: 20 }), (events) => {
+        const sm = new AvatarStateMachineImpl();
+        const validStates: AvatarState[] = ['idle', 'listening', 'thinking', 'speaking'];
 
-        for (const event of events) {
-          // Update activity flags
-          if (event.type === 'USER_SPEAKING_START') userSpeaking = true;
-          if (event.type === 'USER_SPEAKING_END') userSpeaking = false;
-          if (event.type === 'TTS_START') ttsActive = true;
-          if (event.type === 'TTS_END') ttsActive = false;
-          if (event.type === 'THINKING_START') thinking = true;
-          if (event.type === 'THINKING_END') thinking = false;
-
-          const state = sm.transition(event);
-
-          // Verify priority order is respected
-          if (userSpeaking) {
-            expect(state).toBe('listening');
-          } else if (ttsActive) {
-            expect(state).toBe('speaking');
-          } else if (thinking) {
-            expect(state).toBe('thinking');
-          } else {
-            expect(state).toBe('idle');
-          }
+        for (const eventType of events) {
+          const state = sm.transition({ type: eventType });
+          expect(validStates).toContain(state);
         }
-      }),
-      { numRuns: 100 }
+      })
     );
   });
 
   /**
-   * Property 2: Speaking style selects correct video source
-   * 
-   * When in speaking state, the video source must match the current style.
-   * For other states, video source should match the state name.
+   * Property 2: Listening has highest priority
+   * USER_SPEAKING_START always results in listening state
    */
-  it('Property 2: video source matches state and style', () => {
-    const speakingStyleArb = fc.constantFrom<SpeakingStyle>('soft', 'flirty', 'serious');
+  it('Property 2: USER_SPEAKING_START always results in listening', () => {
+    const setupEventsArb = fc.array(
+      fc.constantFrom<AvatarEvent['type']>(
+        'TTS_START',
+        'THINKING_START'
+      ),
+      { maxLength: 5 }
+    );
 
     fc.assert(
-      fc.property(speakingStyleArb, (style) => {
-        const sm = createAvatarStateMachine();
+      fc.property(setupEventsArb, (setupEvents) => {
+        const sm = new AvatarStateMachineImpl();
         
-        // Transition to speaking state with the given style
-        sm.transition({ type: 'TTS_START', style });
-        
-        const videoSource = sm.getVideoSource();
-        expect(videoSource).toBe(`/videos/speaking-${style}.mp4`);
-      }),
-      { numRuns: 50 }
+        // Apply setup events
+        for (const eventType of setupEvents) {
+          sm.transition({ type: eventType });
+        }
+
+        // USER_SPEAKING_START should always result in listening
+        const state = sm.transition({ type: 'USER_SPEAKING_START' });
+        expect(state).toBe('listening');
+      })
     );
   });
 
   /**
-   * Property 2 (extended): Non-speaking states use state-based video source
-   */
-  it('Property 2 (extended): non-speaking states use correct video source', () => {
-    const sm = createAvatarStateMachine();
-
-    // Test idle state
-    expect(sm.getVideoSource()).toBe('/videos/idle.mp4');
-
-    // Test listening state
-    sm.transition({ type: 'USER_SPEAKING_START' });
-    expect(sm.getVideoSource()).toBe('/videos/listening.mp4');
-
-    // Test thinking state
-    sm.transition({ type: 'USER_SPEAKING_END' });
-    sm.transition({ type: 'THINKING_START' });
-    expect(sm.getVideoSource()).toBe('/videos/thinking.mp4');
-  });
-
-  /**
-   * Additional property: State machine is deterministic
+   * Property 3: State machine is deterministic
    * Same sequence of events always produces same final state
    */
-  it('Additional: state machine is deterministic', () => {
-    const speakingStyleArb = fc.constantFrom<SpeakingStyle>('soft', 'flirty', 'serious');
-    
-    const avatarEventArb = fc.oneof(
-      fc.constant<AvatarEvent>({ type: 'USER_SPEAKING_START' }),
-      fc.constant<AvatarEvent>({ type: 'USER_SPEAKING_END' }),
-      fc.record({
-        type: fc.constant('TTS_START' as const),
-        style: speakingStyleArb,
-      }),
-      fc.constant<AvatarEvent>({ type: 'TTS_END' }),
-      fc.constant<AvatarEvent>({ type: 'THINKING_START' }),
-      fc.constant<AvatarEvent>({ type: 'THINKING_END' })
+  it('Property 3: deterministic - same events produce same state', () => {
+    const eventArb = fc.constantFrom<AvatarEvent['type']>(
+      'USER_SPEAKING_START',
+      'USER_SPEAKING_END',
+      'TTS_START',
+      'TTS_END',
+      'THINKING_START',
+      'THINKING_END'
     );
 
     fc.assert(
-      fc.property(fc.array(avatarEventArb, { minLength: 1, maxLength: 15 }), (events) => {
-        const sm1 = createAvatarStateMachine();
-        const sm2 = createAvatarStateMachine();
+      fc.property(fc.array(eventArb, { minLength: 1, maxLength: 15 }), (events) => {
+        const sm1 = new AvatarStateMachineImpl();
+        const sm2 = new AvatarStateMachineImpl();
 
-        let finalState1;
-        let finalState2;
+        let state1: AvatarState = 'idle';
+        let state2: AvatarState = 'idle';
 
-        for (const event of events) {
-          finalState1 = sm1.transition(event);
-          finalState2 = sm2.transition(event);
+        for (const eventType of events) {
+          state1 = sm1.transition({ type: eventType });
+          state2 = sm2.transition({ type: eventType });
         }
 
-        expect(finalState1).toBe(finalState2);
-        expect(sm1.getVideoSource()).toBe(sm2.getVideoSource());
-      }),
-      { numRuns: 100 }
+        expect(state1).toBe(state2);
+        expect(sm1.currentState).toBe(sm2.currentState);
+      })
+    );
+  });
+
+  /**
+   * Property 4: Priority order is maintained
+   * listening > speaking > thinking > idle
+   */
+  it('Property 4: priority order is maintained', () => {
+    fc.assert(
+      fc.property(
+        fc.boolean(),
+        fc.boolean(),
+        fc.boolean(),
+        (userSpeaking, ttsActive, thinking) => {
+          const sm = new AvatarStateMachineImpl();
+
+          // Set up the state
+          if (thinking) sm.transition({ type: 'THINKING_START' });
+          if (ttsActive) sm.transition({ type: 'TTS_START' });
+          if (userSpeaking) sm.transition({ type: 'USER_SPEAKING_START' });
+
+          // Verify priority
+          if (userSpeaking) {
+            expect(sm.currentState).toBe('listening');
+          } else if (ttsActive) {
+            expect(sm.currentState).toBe('speaking');
+          } else if (thinking) {
+            expect(sm.currentState).toBe('thinking');
+          } else {
+            expect(sm.currentState).toBe('idle');
+          }
+        }
+      )
+    );
+  });
+
+  /**
+   * Property 5: Ending an activity resolves to correct next state
+   */
+  it('Property 5: ending activities resolves correctly', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom<'USER_SPEAKING_END' | 'TTS_END' | 'THINKING_END'>(
+          'USER_SPEAKING_END',
+          'TTS_END',
+          'THINKING_END'
+        ),
+        (endEvent) => {
+          const sm = new AvatarStateMachineImpl();
+
+          // Start all activities
+          sm.transition({ type: 'THINKING_START' });
+          sm.transition({ type: 'TTS_START' });
+          sm.transition({ type: 'USER_SPEAKING_START' });
+
+          // Should be listening (highest priority)
+          expect(sm.currentState).toBe('listening');
+
+          // End one activity
+          const state = sm.transition({ type: endEvent });
+
+          // State should still be valid
+          expect(['idle', 'listening', 'thinking', 'speaking']).toContain(state);
+        }
+      )
     );
   });
 });

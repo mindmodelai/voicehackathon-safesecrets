@@ -10,9 +10,9 @@ import type { AudioChunk } from './transcribe-adapter.js';
 import { PollyAdapter } from './polly-adapter.js';
 import { MastraWorkflowEngine } from './mastra-workflow.js';
 import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
-
 import { SmallestAdapter } from './smallest-adapter.js';
 import { SmallestSTTAdapter } from './smallest-stt-adapter.js';
+import { OpenAIAdapter } from './openai-adapter.js';
 
 // ── Constants ──
 
@@ -23,16 +23,17 @@ const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 export interface SessionResources {
   sessionId: string;
   ws: WebSocket;
-  transcribeAdapter: TranscribeAdapter;
+  transcribeAdapter: TranscribeAdapter | null;
   mastraWorkflow: MastraWorkflowEngine;
-  pollyAdapter: PollyAdapter;
-  voiceProvider: SafeSecretsVoiceProvider;
+  pollyAdapter: PollyAdapter | null;
+  voiceProvider: SafeSecretsVoiceProvider | null;
   context: ConversationContext | null;
   isActive: boolean;
   idleTimer: ReturnType<typeof setTimeout> | null;
   sovereigntyMode: SovereigntyMode;
   smallestAdapter: SmallestAdapter | null;
   smallestSTTAdapter: SmallestSTTAdapter | null;
+  openaiAdapter: OpenAIAdapter | null;
 }
 
 // ── Helpers ──
@@ -51,7 +52,7 @@ const ClientControlMessageSchema = z.object({
     z.object({
       action: z.literal('set_mode'),
       data: z.object({
-        mode: z.enum(['full_canada', 'canada_us_voice', 'us_bedrock_voice', 'full_us']),
+        mode: z.enum(['full_canada', 'canada_us_voice', 'us_bedrock_voice', 'full_us', 'aws_free']),
       }),
     }),
   ]),
@@ -184,9 +185,10 @@ export class SafeSecretsWSServer {
       context: null,
       isActive: true,
       idleTimer: null,
-      sovereigntyMode: 'full_us',
+      sovereigntyMode: 'full_canada',
       smallestAdapter: null,
       smallestSTTAdapter: null,
+      openaiAdapter: null,
     };
 
     this.sessions.set(sessionId, session);
@@ -250,9 +252,15 @@ export class SafeSecretsWSServer {
     const buffer = Buffer.from(payload.data);
 
     try {
-      if (session.sovereigntyMode === 'full_us' && session.smallestSTTAdapter) {
-        session.smallestSTTAdapter.feedAudio(session.sessionId, { data: buffer });
-      } else {
+      if (session.smallestSTTAdapter) {
+        // Using Smallest.ai STT
+        session.smallestSTTAdapter.feedAudio(session.sessionId, {
+          data: buffer,
+          sampleRate: payload.sampleRate,
+          encoding: 'pcm',
+        });
+      } else if (session.transcribeAdapter) {
+        // Using AWS Transcribe
         const chunk: AudioChunk = {
           data: buffer,
           sampleRate: payload.sampleRate,
@@ -303,20 +311,30 @@ export class SafeSecretsWSServer {
   private async startConversation(session: SessionResources): Promise<void> {
     const { sessionId, ws, transcribeAdapter, mastraWorkflow, pollyAdapter } = session;
 
-    const useSmallestSTT = session.sovereigntyMode === 'full_us' && session.smallestSTTAdapter;
+    const config = MODE_CONFIGS[session.sovereigntyMode];
 
     // Log pipeline settings
-    const sttProvider = useSmallestSTT
-      ? 'Smallest.ai Pulse STT'
-      : `Amazon Transcribe — region: ${transcribeAdapter.getRegion()}`;
-    const ttsProvider = (session.sovereigntyMode === 'full_us' && session.smallestAdapter)
+    const llmProvider = config.llmProvider === 'openai'
+      ? `OpenAI (${session.openaiAdapter?.getModelId()})`
+      : `Bedrock (${mastraWorkflow.getModelId()}, region: ${mastraWorkflow.getRegion()})`;
+    
+    const sttProvider = session.smallestSTTAdapter
+      ? 'Smallest.ai Lightning STT'
+      : transcribeAdapter
+        ? `Amazon Transcribe (region: ${transcribeAdapter.getRegion()})`
+        : 'None';
+    
+    const ttsProvider = session.smallestAdapter
       ? `Smallest.ai (voice: ${session.smallestAdapter.getVoiceId()})`
-      : `Polly ${pollyAdapter.getEngine()} (voice: ${pollyAdapter.getVoiceId()}, region: ${pollyAdapter.getRegion()})`;
+      : pollyAdapter
+        ? `Polly ${pollyAdapter.getEngine()} (voice: ${pollyAdapter.getVoiceId()}, region: ${pollyAdapter.getRegion()})`
+        : 'None';
+
     console.log([
       `[WSServer] ▶ Starting conversation`,
       `  Mode:  ${session.sovereigntyMode}`,
       `  STT:   ${sttProvider}`,
-      `  LLM:   ${mastraWorkflow.getModelId()} — region: ${mastraWorkflow.getRegion()}`,
+      `  LLM:   ${llmProvider}`,
       `  TTS:   ${ttsProvider}`,
     ].join('\n'));
 
@@ -334,8 +352,12 @@ export class SafeSecretsWSServer {
           speakingNotified = true;
 
           // Barge-in: if TTS is currently synthesizing, stop it immediately
-          if (pollyAdapter.isSynthesizing()) {
+          if (pollyAdapter?.isSynthesizing()) {
             pollyAdapter.stop();
+            sendMessage(ws, { type: 'event', event: 'tts.end' });
+          }
+          if (session.smallestAdapter?.isSynthesizing()) {
+            session.smallestAdapter.stop();
             sendMessage(ws, { type: 'event', event: 'tts.end' });
           }
         }
@@ -348,10 +370,12 @@ export class SafeSecretsWSServer {
         this.processTranscript(session, text);
       };
 
-      if (useSmallestSTT) {
-        await session.smallestSTTAdapter!.startStream(sessionId, onPartial, onFinal);
-      } else {
+      if (session.smallestSTTAdapter) {
+        await session.smallestSTTAdapter.startStream(sessionId, onPartial, onFinal);
+      } else if (transcribeAdapter) {
         await transcribeAdapter.startStream(sessionId, onPartial, onFinal);
+      } else {
+        throw new Error('No STT adapter configured');
       }
     } catch (err) {
       console.error(`[WSServer] Failed to start conversation for session ${sessionId}:`, err);
@@ -465,12 +489,14 @@ export class SafeSecretsWSServer {
     };
 
     try {
-      if (session.sovereigntyMode === 'full_us' && session.smallestAdapter) {
+      if (session.smallestAdapter) {
         console.log(`[WSServer] TTS via Smallest.ai for session ${session.sessionId}`);
         await session.smallestAdapter.synthesize(text, onChunk);
-      } else {
+      } else if (session.pollyAdapter) {
         console.log(`[WSServer] TTS via Polly for session ${session.sessionId}`);
         await session.pollyAdapter.synthesize(text, onChunk);
+      } else {
+        throw new Error('No TTS adapter configured');
       }
     } catch (err) {
       console.error(`[WSServer] TTS error for session ${session.sessionId}:`, err);
@@ -503,7 +529,15 @@ export class SafeSecretsWSServer {
       this.endConversation(session);
     }
 
-    // Smartest.ai requires API key
+    // Reset all adapters
+    session.smallestAdapter = null;
+    session.smallestSTTAdapter = null;
+    session.openaiAdapter = null;
+    session.transcribeAdapter = null;
+    session.pollyAdapter = null;
+    session.voiceProvider = null;
+
+    // Configure TTS provider
     if (config.ttsProvider === 'smartest_ai') {
       const apiKey = process.env.SMALLEST_AI_API_KEY;
       if (!apiKey) {
@@ -515,23 +549,51 @@ export class SafeSecretsWSServer {
         return;
       }
       session.smallestAdapter = new SmallestAdapter(apiKey, 'sophia');
-      session.smallestSTTAdapter = new SmallestSTTAdapter(apiKey);
-    } else {
-      session.smallestAdapter = null;
-      session.smallestSTTAdapter = null;
+    } else if (config.pollyRegion) {
+      session.pollyAdapter = new PollyAdapter({
+        region: config.pollyRegion,
+        engine: config.pollyEngine,
+      });
     }
 
-    // Recreate adapters with new region config
-    session.transcribeAdapter = new TranscribeAdapter(config.transcribeRegion);
-    session.pollyAdapter = new PollyAdapter({
-      region: config.pollyRegion,
-      engine: config.pollyEngine,
-    });
-    session.voiceProvider = new SafeSecretsVoiceProvider(session.transcribeAdapter, session.pollyAdapter);
+    // Configure STT provider
+    if (config.sttProvider === 'smallest_ai') {
+      const apiKey = process.env.SMALLEST_AI_API_KEY;
+      if (!apiKey) {
+        sendMessage(session.ws, {
+          type: 'event',
+          event: 'error',
+          data: { message: 'Smallest.ai API key not configured. Set SMALLEST_AI_API_KEY.' },
+        });
+        return;
+      }
+      session.smallestSTTAdapter = new SmallestSTTAdapter(apiKey);
+    } else if (config.transcribeRegion) {
+      session.transcribeAdapter = new TranscribeAdapter(config.transcribeRegion);
+    }
 
-    // Recreate the workflow engine with the new Bedrock region
+    // Configure LLM provider
+    if (config.llmProvider === 'openai') {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        sendMessage(session.ws, {
+          type: 'event',
+          event: 'error',
+          data: { message: 'OpenAI API key not configured. Set OPENAI_API_KEY.' },
+        });
+        return;
+      }
+      session.openaiAdapter = new OpenAIAdapter(undefined, undefined, apiKey);
+    }
+
+    // Create voice provider if using AWS services
+    if (session.transcribeAdapter && session.pollyAdapter) {
+      session.voiceProvider = new SafeSecretsVoiceProvider(session.transcribeAdapter, session.pollyAdapter);
+    }
+
+    // Recreate the workflow engine with the appropriate LLM adapter
     session.mastraWorkflow = new MastraWorkflowEngine(
-      session.voiceProvider,
+      session.voiceProvider ?? undefined,
       {
         onStyleUpdate: (style) => {
           sendMessage(session.ws, { type: 'event', event: 'ui.style', data: { style } });
@@ -541,23 +603,33 @@ export class SafeSecretsWSServer {
         },
       },
       undefined,
-      config.bedrockRegion,
+      config.bedrockRegion ?? undefined,
     );
 
     session.sovereigntyMode = mode;
 
     // Log the new pipeline settings
+    const llmDesc = config.llmProvider === 'openai'
+      ? `OpenAI (${session.openaiAdapter?.getModelId()})`
+      : `Bedrock (${session.mastraWorkflow.getModelId()}, region: ${session.mastraWorkflow.getRegion()})`;
+    
     const ttsDesc = config.ttsProvider === 'smartest_ai'
       ? `Smallest.ai (voice: ${session.smallestAdapter?.getVoiceId()})`
-      : `Polly ${session.pollyAdapter.getEngine()} (voice: ${session.pollyAdapter.getVoiceId()}, region: ${session.pollyAdapter.getRegion()})`;
-    const sttDesc = config.ttsProvider === 'smartest_ai'
-      ? 'Smallest.ai Pulse STT'
-      : `Amazon Transcribe — region: ${session.transcribeAdapter.getRegion()}`;
+      : session.pollyAdapter
+        ? `Polly ${session.pollyAdapter.getEngine()} (voice: ${session.pollyAdapter.getVoiceId()}, region: ${session.pollyAdapter.getRegion()})`
+        : 'None';
+    
+    const sttDesc = config.sttProvider === 'smallest_ai'
+      ? 'Smallest.ai Lightning STT'
+      : session.transcribeAdapter
+        ? `Amazon Transcribe (region: ${session.transcribeAdapter.getRegion()})`
+        : 'None';
+
     console.log([
       `[WSServer] 🔄 Mode switched`,
       `  Mode:  ${mode}`,
       `  STT:   ${sttDesc}`,
-      `  LLM:   ${session.mastraWorkflow.getModelId()} — region: ${session.mastraWorkflow.getRegion()}`,
+      `  LLM:   ${llmDesc}`,
       `  TTS:   ${ttsDesc}`,
     ].join('\n'));
 
@@ -589,20 +661,21 @@ export class SafeSecretsWSServer {
   private async stopSessionStreams(session: SessionResources): Promise<void> {
     // Stop STT stream (Transcribe or Smallest)
     try {
-      if (session.sovereigntyMode === 'full_us' && session.smallestSTTAdapter?.hasActiveStream(session.sessionId)) {
+      if (session.smallestSTTAdapter?.hasActiveStream(session.sessionId)) {
         await session.smallestSTTAdapter.stopStream(session.sessionId);
-      } else if (session.transcribeAdapter.hasActiveStream(session.sessionId)) {
+      } else if (session.transcribeAdapter?.hasActiveStream(session.sessionId)) {
         await session.transcribeAdapter.stopStream(session.sessionId);
       }
     } catch (err) {
       console.error(`[WSServer] Error stopping STT for session ${session.sessionId}:`, err);
     }
 
-    // Stop Polly synthesis
+    // Stop TTS synthesis
     try {
-      session.pollyAdapter.stop();
+      session.pollyAdapter?.stop();
+      session.smallestAdapter?.stop();
     } catch (err) {
-      console.error(`[WSServer] Error stopping Polly for session ${session.sessionId}:`, err);
+      console.error(`[WSServer] Error stopping TTS for session ${session.sessionId}:`, err);
     }
 
     // Delete Mastra session

@@ -12,16 +12,19 @@ export type SovereigntyMode =
   | 'full_canada'        // All services in ca-central-1, Polly Neural
   | 'canada_us_voice'    // Bedrock+Transcribe in CA, Polly Generative in us-east-1
   | 'us_bedrock_voice'   // Bedrock+Transcribe+Polly all in us-east-1, Polly Generative
-  | 'full_us';           // All US + Smartest.ai TTS (future)
+  | 'full_us'            // All US + Smallest.ai TTS
+  | 'aws_free';          // Smallest.ai STT+TTS, OpenAI LLM (no AWS required)
 
 export interface SovereigntyModeConfig {
   label: string;
   description: string;
-  bedrockRegion: string;
-  transcribeRegion: string;
-  pollyRegion: string;
+  bedrockRegion: string | null; // null when using OpenAI
+  transcribeRegion: string | null; // null when using Smallest.ai STT
+  pollyRegion: string | null; // null when using Smallest.ai TTS
   pollyEngine: 'neural' | 'generative';
   ttsProvider: 'polly' | 'smartest_ai';
+  sttProvider: 'transcribe' | 'smallest_ai';
+  llmProvider: 'bedrock' | 'openai';
 }
 
 export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> = {
@@ -33,6 +36,8 @@ export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> =
     pollyRegion: 'ca-central-1',
     pollyEngine: 'neural',
     ttsProvider: 'polly',
+    sttProvider: 'transcribe',
+    llmProvider: 'bedrock',
   },
   canada_us_voice: {
     label: 'All American',
@@ -42,6 +47,8 @@ export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> =
     pollyRegion: 'us-east-1',
     pollyEngine: 'generative',
     ttsProvider: 'polly',
+    sttProvider: 'transcribe',
+    llmProvider: 'bedrock',
   },
   us_bedrock_voice: {
     label: 'All USA',
@@ -51,15 +58,30 @@ export const SOVEREIGNTY_MODES: Record<SovereigntyMode, SovereigntyModeConfig> =
     pollyRegion: 'us-east-1',
     pollyEngine: 'generative',
     ttsProvider: 'polly',
+    sttProvider: 'transcribe',
+    llmProvider: 'bedrock',
   },
   full_us: {
     label: 'Full US + Smallest.ai',
-    description: 'US endpoints with Smallest.ai TTS (coming soon)',
+    description: 'US endpoints with Smallest.ai TTS',
     bedrockRegion: 'us-east-1',
     transcribeRegion: 'us-east-1',
     pollyRegion: 'us-east-1',
     pollyEngine: 'generative',
     ttsProvider: 'smartest_ai',
+    sttProvider: 'transcribe',
+    llmProvider: 'bedrock',
+  },
+  aws_free: {
+    label: '🚀 AWS-Free (OpenAI + Smallest.ai)',
+    description: 'No AWS required - OpenAI LLM, Smallest.ai STT+TTS',
+    bedrockRegion: null,
+    transcribeRegion: null,
+    pollyRegion: null,
+    pollyEngine: 'generative',
+    ttsProvider: 'smartest_ai',
+    sttProvider: 'smallest_ai',
+    llmProvider: 'openai',
   },
 };
 

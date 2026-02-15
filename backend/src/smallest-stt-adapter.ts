@@ -1,24 +1,29 @@
 /**
- * Smallest.ai Pulse STT Adapter
- *
- * Real-time speech-to-text via WebSocket streaming.
- * Connects to the Pulse API at wss://waves-api.smallest.ai/api/v1/pulse/get_text
- * Accepts PCM audio at 16kHz (linear16) — matches the existing pipeline.
+ * Smallest.ai Lightning STT (Speech-to-Text) Adapter
+ * 
+ * Provides real-time speech-to-text transcription via WebSocket streaming.
+ * Alternative to AWS Transcribe for users without AWS credentials.
  */
 
 import WebSocket from 'ws';
 
-const BASE_WS_URL = 'wss://waves-api.smallest.ai/api/v1/pulse/get_text';
-const SAMPLE_RATE = 16000;
+const WS_BASE_URL = 'wss://waves-api.smallest.ai/api/v1/lightning/get_text';
 
-export interface SmallestSTTCallbacks {
-  onPartial: (text: string) => void;
-  onFinal: (text: string) => void;
+export interface AudioChunk {
+  data: Buffer;
+  sampleRate: number;
+  encoding: 'pcm';
+}
+
+interface SessionStream {
+  ws: WebSocket | null;
+  stopped: boolean;
+  sampleRate: number;
 }
 
 export class SmallestSTTAdapter {
   private apiKey: string;
-  private sessions: Map<string, WebSocket> = new Map();
+  private sessions: Map<string, SessionStream> = new Map();
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey ?? process.env.SMALLEST_AI_API_KEY ?? '';
@@ -27,96 +32,145 @@ export class SmallestSTTAdapter {
     }
   }
 
+  /**
+   * Opens a Smallest.ai Lightning STT WebSocket session for the given sessionId.
+   * Calls `onPartial` for partial transcripts and `onFinal` for final transcripts.
+   */
   async startStream(
     sessionId: string,
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
   ): Promise<void> {
     if (this.sessions.has(sessionId)) {
-      await this.stopStream(sessionId);
+      throw new Error(`Stream already active for session ${sessionId}`);
     }
 
+    const sampleRate = 16000;
+    
+    // Build WebSocket URL with query parameters
     const params = new URLSearchParams({
       language: 'en',
       encoding: 'linear16',
-      sample_rate: String(SAMPLE_RATE),
+      sample_rate: sampleRate.toString(),
       word_timestamps: 'false',
       full_transcript: 'false',
+      sentence_timestamps: 'false',
     });
+    
+    const wsUrl = `${WS_BASE_URL}?${params.toString()}`;
 
-    const url = `${BASE_WS_URL}?${params.toString()}`;
-
-    return new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(url, {
-        headers: { Authorization: `Bearer ${this.apiKey}` },
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(wsUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
       });
 
+      const session: SessionStream = {
+        ws,
+        stopped: false,
+        sampleRate,
+      };
+
+      this.sessions.set(sessionId, session);
+
       ws.on('open', () => {
-        console.log(`[SmallestSTT] WebSocket connected for session ${sessionId}`);
-        this.sessions.set(sessionId, ws);
+        console.log(`[SmallestSTT] WebSocket opened for session ${sessionId}`);
         resolve();
       });
 
-      ws.on('message', (data: Buffer | string) => {
+      ws.on('message', (data: WebSocket.Data) => {
+        if (session.stopped) return;
+
         try {
-          const raw = typeof data === 'string' ? data : data.toString('utf-8');
-          console.log(`[SmallestSTT] Message received:`, raw.slice(0, 200));
-          const msg = JSON.parse(raw);
-          if (msg.transcript) {
-            if (msg.is_final || msg.is_last) {
-              onFinal(msg.transcript);
-            } else {
-              onPartial(msg.transcript);
-            }
+          const message = JSON.parse(data.toString());
+          
+          // Smallest.ai response format:
+          // { "text": "...", "is_partial": true/false, "is_last": true/false }
+          const text = message.text || message.transcript || '';
+          if (!text) return;
+
+          const isPartial = message.is_partial === true;
+          const isFinal = !isPartial || message.is_last === true;
+
+          if (isPartial && !isFinal) {
+            onPartial(text);
+          } else {
+            onFinal(text);
           }
-        } catch {
-          // ignore non-JSON messages
+        } catch (err) {
+          console.error(`[SmallestSTT] Error parsing message:`, err);
         }
       });
 
       ws.on('error', (err) => {
-        console.error(`[SmallestSTT] WebSocket error for session ${sessionId}:`, err.message);
-        this.sessions.delete(sessionId);
-        reject(err);
+        console.error(`[SmallestSTT] WebSocket error for session ${sessionId}:`, err);
+        if (!session.stopped) {
+          this.sessions.delete(sessionId);
+          reject(err);
+        }
       });
 
-      ws.on('close', (code, reason) => {
-        console.log(`[SmallestSTT] WebSocket closed for session ${sessionId}: code=${code} reason=${reason?.toString()}`);
+      ws.on('close', () => {
+        console.log(`[SmallestSTT] WebSocket closed for session ${sessionId}`);
         this.sessions.delete(sessionId);
       });
     });
   }
 
-  feedAudio(sessionId: string, chunk: { data: Buffer }): void {
-    const ws = this.sessions.get(sessionId);
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.log(`[SmallestSTT] feedAudio skipped — ws state: ${ws?.readyState ?? 'no session'}`);
-      return;
+  /**
+   * Feeds an audio chunk into the active Smallest.ai STT stream for the session.
+   */
+  feedAudio(sessionId: string, chunk: AudioChunk): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`No active stream for session ${sessionId}`);
     }
-    ws.send(chunk.data);
+    if (session.stopped) {
+      throw new Error(`Stream already stopped for session ${sessionId}`);
+    }
+    if (!session.ws || session.ws.readyState !== WebSocket.OPEN) {
+      throw new Error(`WebSocket not ready for session ${sessionId}`);
+    }
+
+    // Send raw PCM audio bytes
+    session.ws.send(chunk.data);
   }
 
+  /**
+   * Stops the Smallest.ai STT stream for the given session and cleans up resources.
+   */
   async stopStream(sessionId: string): Promise<void> {
-    const ws = this.sessions.get(sessionId);
-    if (!ws) return;
-
-    try {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'end' }));
-        ws.close();
-      }
-    } catch {
-      // ignore close errors
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`No active stream for session ${sessionId}`);
     }
+
+    session.stopped = true;
+
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      // Send end signal
+      session.ws.send(JSON.stringify({ type: 'end' }));
+      
+      // Close WebSocket
+      session.ws.close();
+    }
+
     this.sessions.delete(sessionId);
   }
 
+  /**
+   * Returns whether a session stream is currently active.
+   */
   hasActiveStream(sessionId: string): boolean {
-    const ws = this.sessions.get(sessionId);
-    return ws !== null && ws !== undefined && ws.readyState === WebSocket.OPEN;
+    const session = this.sessions.get(sessionId);
+    return session != null && !session.stopped && session.ws?.readyState === WebSocket.OPEN;
   }
 
-  getRegion(): string {
+  /**
+   * Returns the provider name for logging/debugging.
+   */
+  getProvider(): string {
     return 'smallest.ai';
   }
 }

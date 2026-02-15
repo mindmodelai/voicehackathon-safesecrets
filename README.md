@@ -46,11 +46,80 @@ A production instance is available at **https://safesecrets.ca** for testing and
 ### Prerequisites
 
 - **Node.js 18+** (tested with Node 20 and 24)
-- **AWS Account** with:
-  - Bedrock model access enabled in `ca-central-1` (and optionally `us-east-1` for US modes)
-  - Transcribe and Polly available in `ca-central-1` and `us-east-1`
-- **AWS Credentials** configured (via environment variables or `~/.aws/credentials`)
-- **Smallest.ai API Key** (optional, only needed for "Full US + Smallest.ai" mode)
+- **For AWS-based modes** (Full Canada, Canada + US Voice, US Bedrock + Voice):
+  - AWS Account with:
+    - Bedrock model access enabled in `ca-central-1` (and optionally `us-east-1` for US modes)
+    - Transcribe and Polly available in `ca-central-1` and `us-east-1`
+  - AWS Credentials configured (via environment variables or `~/.aws/credentials`)
+- **For Smallest.ai mode** (Full US + Smallest.ai):
+  - Smallest.ai API Key from https://smallest.ai
+  - AWS credentials still required for Bedrock (LLM) and Transcribe (STT)
+
+**Note:** All modes currently require AWS credentials for LLM inference (Bedrock) and speech-to-text (Transcribe). Only the TTS (text-to-speech) provider varies by mode.
+
+### Required IAM Permissions
+
+Your AWS credentials need the following permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:ca-central-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "transcribe:StartStreamTranscription"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "polly:SynthesizeSpeech"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+**Minimum permissions:**
+- `bedrock:InvokeModel` - For LLM inference (Claude 3 Haiku)
+- `transcribe:StartStreamTranscription` - For real-time speech-to-text
+- `polly:SynthesizeSpeech` - For text-to-speech (not needed if only using Smallest.ai mode)
+
+### Interactive Setup (Recommended)
+
+Run the setup script to configure your environment interactively:
+
+```powershell
+# Windows PowerShell
+.\setup.ps1
+```
+
+```bash
+# macOS/Linux (coming soon)
+./setup.sh
+```
+
+The script will:
+1. Check for AWS credentials
+2. Prompt for Smallest.ai API key (optional)
+3. Create `backend/.env` with your configuration
+4. Install all dependencies
+5. Build shared types
+
+### Manual Setup
 
 ### 1. Clone and Install
 
@@ -75,21 +144,40 @@ cp backend/.env.example backend/.env
 Edit `backend/.env` and add your credentials:
 
 ```bash
-# AWS Credentials (required)
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+# Required for local development
+PORT=8080
 AWS_REGION=ca-central-1
+NODE_ENV=development
 
 # Smallest.ai API Key (optional - only needed for "Full US + Smallest.ai" mode)
 # Get your key from https://smallest.ai
 SMALLEST_AI_API_KEY=your_smallest_ai_api_key_here
 
-# Optional: Override defaults
-PORT=8080
-BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+# Optional: Override Bedrock model
+# BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
 ```
 
-**Note:** The first three modes (Full Canada, Canada + US Voice, US Bedrock + Voice) work with just AWS credentials. The Smallest.ai API key is only required if you want to test the fourth mode.
+**AWS Credentials:** The application uses the AWS SDK for Bedrock (LLM) and Transcribe (STT) in all modes. The backend server acts as a secure proxy between the browser and AWS services.
+
+**How it works:**
+- Browser connects to your backend via WebSocket (localhost:8080)
+- Backend uses your AWS credentials to call AWS APIs
+- Results stream back to the browser
+- Credentials never leave the server or reach the browser
+
+**Credentials are automatically loaded from:**
+1. Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
+2. AWS credentials file (`~/.aws/credentials`)
+3. IAM role (when running on EC2)
+
+For local development, ensure your AWS credentials are configured via one of these methods. Test with:
+```bash
+aws sts get-caller-identity
+```
+
+**Why a backend is required:** AWS services like Bedrock, Transcribe, and Polly cannot be called directly from a browser due to security (credentials would be exposed), CORS restrictions, and billing concerns. The backend acts as a secure intermediary.
+
+**Smallest.ai API Key:** Only required for the "Full US + Smallest.ai" mode. The other three modes use Amazon Polly for TTS and don't need this key.
 
 ### 3. Build Shared Types
 
