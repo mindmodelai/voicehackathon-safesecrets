@@ -18,6 +18,7 @@ const MODE_SERVICE_LISTS: Record<SovereigntyMode, string[]> = {
   canada_us_voice: ['CA Transcribe STT', 'CA Bedrock LLM', 'US Polly Generative TTS'],
   us_bedrock_voice: ['US Transcribe STT', 'US Bedrock LLM', 'US Polly Generative TTS'],
   full_us: ['Smallest.ai Pulse STT', 'US Bedrock LLM', 'Smallest.ai Lightning TTS'],
+  aws_free: ['Smallest.ai Lightning STT', 'OpenAI LLM', 'Smallest.ai Lightning TTS'],
 };
 
 const MODE_FLAGS: Record<SovereigntyMode, 'ca' | 'us'> = {
@@ -25,6 +26,7 @@ const MODE_FLAGS: Record<SovereigntyMode, 'ca' | 'us'> = {
   canada_us_voice: 'ca',
   us_bedrock_voice: 'us',
   full_us: 'us',
+  aws_free: 'us',
 };
 
 // Baked-in layout values — desktop

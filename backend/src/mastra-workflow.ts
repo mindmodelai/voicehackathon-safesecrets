@@ -276,17 +276,17 @@ export class MastraWorkflowEngine {
 
       // Extract context fields from the LLM response
       const raw = output as unknown as Record<string, unknown>;
-      if (raw.recipient && typeof raw.recipient === 'string') {
-        ctx.recipient = raw.recipient;
+      if ('recipient' in raw && (typeof raw.recipient === 'string' || raw.recipient === null)) {
+        ctx.recipient = raw.recipient as string | null;
       }
-      if (raw.situation && typeof raw.situation === 'string') {
-        ctx.situation = raw.situation;
+      if ('situation' in raw && (typeof raw.situation === 'string' || raw.situation === null)) {
+        ctx.situation = raw.situation as string | null;
       }
-      if (raw.desiredTone && typeof raw.desiredTone === 'string') {
-        ctx.desiredTone = raw.desiredTone;
+      if ('desiredTone' in raw && (typeof raw.desiredTone === 'string' || raw.desiredTone === null)) {
+        ctx.desiredTone = raw.desiredTone as string | null;
       }
-      if (raw.desiredOutcome && typeof raw.desiredOutcome === 'string') {
-        ctx.desiredOutcome = raw.desiredOutcome;
+      if ('desiredOutcome' in raw && (typeof raw.desiredOutcome === 'string' || raw.desiredOutcome === null)) {
+        ctx.desiredOutcome = raw.desiredOutcome as string | null;
       }
 
       console.log(`[Workflow] Collect stage — recipient: ${ctx.recipient}, situation: ${ctx.situation}, tone: ${ctx.desiredTone}, outcome: ${ctx.desiredOutcome}`);
