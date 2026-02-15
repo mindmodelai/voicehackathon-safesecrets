@@ -23,6 +23,14 @@ export interface ArtifactPanelProps {
     padLeft: number;
     marginBottom: number;
   };
+  closedTuner?: {
+    perspective: number;
+    originY: number;
+    rotateY: number;
+    height: number;
+    marginTop: number;
+    marginLeft: number;
+  };
   tunerText?: string;
 }
 
@@ -67,7 +75,7 @@ function FlagIcon({ country, className }: { country: 'ca' | 'us'; className?: st
   );
 }
 
-export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onModeChange, isActive, noteTuner, tunerText }: ArtifactPanelProps) {
+export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onModeChange, isActive, noteTuner, closedTuner, tunerText }: ArtifactPanelProps) {
   // Only apply tuner styles on desktop (>768px)
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
   const tuner = isMobile ? undefined : noteTuner;
@@ -85,7 +93,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
       <div className={styles.promptSection}>
         <div style={{ width: '100%' }}>
           <p className={styles.promptHeading}>How Safe Is<br />Your Secret?</p>
-          <p className={styles.promptSub}>Choose your Canadian Sovereignty <br className="desktop-only" />settings below.</p>
+          <p className={styles.promptSub}>Choose your Canadian Sovereignty settings below.</p>
         </div>
       </div>
 
@@ -93,8 +101,8 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
         perspective: `${tuner.perspective}px`,
         perspectiveOrigin: `right ${tuner.originY}%`,
       } : {
-        perspective: '400px',
-        perspectiveOrigin: 'right 20%',
+        perspective: `${closedTuner?.perspective ?? 400}px`,
+        perspectiveOrigin: `right ${closedTuner?.originY ?? 20}%`,
       }}>
         <div className={styles.optionsSection} style={isActive && tuner ? {
           transform: `rotateY(${tuner.rotateY}deg)`,
@@ -102,10 +110,10 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
           marginTop: `${tuner.marginTop}px`,
           marginLeft: `${tuner.marginLeft}px`,
         } : {
-          transform: 'rotateY(6deg)',
-          height: '108%',
-          marginTop: '-24px',
-          marginLeft: '6px',
+          transform: `rotateY(${closedTuner?.rotateY ?? 6}deg)`,
+          height: `${closedTuner?.height ?? 108}%`,
+          marginTop: `${closedTuner?.marginTop ?? -24}px`,
+          marginLeft: `${closedTuner?.marginLeft ?? 6}px`,
         }}>
           {showContent && (
             isActive ? (

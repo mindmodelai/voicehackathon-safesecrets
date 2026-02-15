@@ -40,9 +40,10 @@ export function buildComposePrompt(ctx: ConversationContext): string {
     `Desired outcome: ${ctx.desiredOutcome}`,
     '',
     'Compose a beautiful, personalized love note based on the context above.',
-    'IMPORTANT: Set spokenResponse to the love note itself, read aloud warmly and naturally.',
-    'Do NOT explain or describe the note in spokenResponse — just read it.',
-    'Set noteDraft to the same love note text.',
+    'IMPORTANT: Put the love note ONLY in noteDraft — this is what appears on the notepad.',
+    'Set spokenResponse to a SHORT conversational remark presenting the note',
+    '(e.g. "Here\'s what I came up with for you" or "Take a look at this").',
+    'Do NOT put the note text in spokenResponse — it must NOT be read aloud by TTS.',
     'Set tags to descriptive tags for the note (e.g., #sweet, #romantic).',
     'Set style to match the desired tone.',
   ].join('\n');
@@ -70,6 +71,8 @@ export function buildRefinePrompt(
     'Update ONLY the noteDraft based on the refinement request.',
     'Keep the same general meaning but apply the requested change.',
     'Update tags if the character of the note changed.',
-    'IMPORTANT: Set spokenResponse to the updated note read aloud. Do NOT explain what changed.',
+    'IMPORTANT: Put the updated note ONLY in noteDraft.',
+    'Set spokenResponse to a SHORT conversational remark about the update',
+    '(e.g. "I\'ve updated it for you" or "Here\'s the new version"). Do NOT read the note aloud.',
   ].join('\n');
 }
