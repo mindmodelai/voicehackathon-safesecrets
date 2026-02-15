@@ -5,7 +5,7 @@
 
 set -e
 
-EC2_HOST="184.73.253.209"
+EC2_HOST="99.79.9.109"
 EC2_USER="ec2-user"
 SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/safesecrets-key.pem}"
 BACKEND_DIR="/opt/safesecrets/backend"
