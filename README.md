@@ -1,3 +1,5 @@
+![SafeSecrets](frontend/public/logos/social.jpg)
+
 # SafeSecrets
 
 A real-time conversational voice application that helps users compose personalized love notes through natural speech. Built with Mastra for orchestration, Amazon Bedrock for LLM inference, Amazon Transcribe for speech-to-text, and multiple TTS providers (Amazon Polly, Smallest.ai). Features a data sovereignty dial that lets users control which AWS regions process their data.
