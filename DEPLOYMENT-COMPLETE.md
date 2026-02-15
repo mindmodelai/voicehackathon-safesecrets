@@ -20,8 +20,8 @@
 - **Status:** ✅ Running on port 8080
 
 ### Infrastructure
-- **EC2 Instance:** i-027ef930f941236c7
-- **IP Address:** 99.79.9.109
+- **EC2 Instance:** your_instance_id
+- **IP Address:** your_ec2_ip
 - **Region:** ca-central-1 (Canada)
 - **OS:** Amazon Linux 2023
 - **User:** ec2-user
