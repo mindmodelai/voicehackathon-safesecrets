@@ -293,11 +293,11 @@
 
 @media (max-width: 768px) {
   .promptHeading {
-    font-size: 1.3rem;
+    font-size: 1.8rem;
   }
 
   .promptSub {
-    font-size: 0.5rem;
+    font-size: 0.85rem;
   }
 
   .promptSection {
@@ -307,19 +307,25 @@
 
   /* Flatten the trapezoid perspective on mobile — center the content */
   .optionsWrapper {
-    perspective: none !important;
-    perspective-origin: center center !important;
     display: flex;
     justify-content: center;
   }
 
   .optionsSection {
-    transform: none !important;
-    height: auto !important;
-    margin-top: 0 !important;
-    margin-left: 0 !important;
     padding: 10px 8px 10px 32px;
     align-items: stretch;
+  }
+
+  /* Note: switch from absolute to static so it flows naturally on mobile */
+  .noteContainer {
+    position: static;
+    overflow-y: auto;
+  }
+
+  .notePlaceholder {
+    font-size: 1.6rem;
+    line-height: 1.4;
+    padding: 12px 16px;
   }
 
   .radioLabel {
@@ -365,6 +371,12 @@
 
   .promptSub {
     font-size: 1.1rem;
+  }
+
+  .notePlaceholder {
+    font-size: 1.8rem;
+    line-height: 1.4;
+    padding: 14px 18px;
   }
 
   .radioLabel {
