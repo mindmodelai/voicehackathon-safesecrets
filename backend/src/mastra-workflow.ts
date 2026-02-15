@@ -304,9 +304,24 @@ export class MastraWorkflowEngine {
       };
     }
 
+    // Fallback messages with variety
+    const fallbackMessages = [
+      "I'd love to help you write something special. Could you tell me who this message is for?",
+      "Let's create something beautiful together. Who are you writing this for?",
+      "I'm here to help you express your feelings. Who's the lucky person?",
+      "Let's craft the perfect message. Who will be receiving this?",
+      "I can help you put your feelings into words. Who's this message for?",
+      "Let's make something meaningful. Tell me, who are you thinking of?",
+      "I'm excited to help you create something special. Who's on your mind?",
+      "Let's write something from the heart. Who are you hoping to reach?",
+      "I'd be happy to help you express yourself. Who's this for?",
+      "Let's create something they'll treasure. Who are you writing to?",
+    ];
+    
+    const randomMessage = fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
+
     return {
-      spokenResponse:
-        "I'd love to help you write something special. Could you tell me who this message is for?",
+      spokenResponse: randomMessage,
       stage: 'collect',
     };
   }

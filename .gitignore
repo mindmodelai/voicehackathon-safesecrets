@@ -53,8 +53,13 @@ sam-internal/
 # Test artifacts
 *.pcm
 
-# Deployment scripts (temporary)
-*.ps1
+# Deployment temporary files
+deploy-temp/
+
+# Deployment scripts - keep examples, ignore actual deployment scripts
+deploy-to-ec2.ps1
+# deploy-to-ec2.example.ps1 is kept in repo as a template
+
 setup-*.sh
 remote-*.sh
 check-*.sh
