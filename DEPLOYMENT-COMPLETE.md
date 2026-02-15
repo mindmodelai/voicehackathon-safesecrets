@@ -62,7 +62,7 @@ Backend environment configured at `/opt/safesecrets/backend/.env`:
 PORT=8080
 AWS_REGION=ca-central-1
 NODE_ENV=production
-SMALLEST_AI_API_KEY=sk_7460d9085938b457f5c6ed24b55654d1
+SMALLEST_AI_API_KEY=your_api_key_here
 ```
 
 ## File Structure on EC2
@@ -89,14 +89,14 @@ SMALLEST_AI_API_KEY=sk_7460d9085938b457f5c6ed24b55654d1
 
 ## SSH Access
 
-**Key:** `D:\MM-Gdrive\WinSCP Portable\k\safesecrets-key.pem`  
-**Passphrase:** 121314  
+**Key:** `your-key.pem` (stored securely outside repo)  
+**Passphrase:** your_passphrase  
 **User:** ec2-user  
-**Host:** 99.79.9.109
+**Host:** your_ec2_ip
 
 **Connect:**
 ```powershell
-ssh -i "D:\MM-Gdrive\WinSCP Portable\k\safesecrets-key.pem" ec2-user@99.79.9.109
+ssh -i "path/to/your-key.pem" ec2-user@your_ec2_ip
 ```
 
 ## Management Commands
@@ -311,14 +311,14 @@ To deploy new code:
 
 2. **Upload backend:**
    ```powershell
-   scp -i "D:\MM-Gdrive\WinSCP Portable\k\safesecrets-key.pem" -r backend/dist/* ec2-user@99.79.9.109:/tmp/backend-new/
-   ssh -i "D:\MM-Gdrive\WinSCP Portable\k\safesecrets-key.pem" ec2-user@99.79.9.109 "sudo cp -r /tmp/backend-new/* /opt/safesecrets/backend/ && pm2 restart safesecrets"
+   scp -i "path/to/your-key.pem" -r backend/dist/* ec2-user@your_ec2_ip:/tmp/backend-new/
+   ssh -i "path/to/your-key.pem" ec2-user@your_ec2_ip "sudo cp -r /tmp/backend-new/* /opt/safesecrets/backend/ && pm2 restart safesecrets"
    ```
 
 3. **Upload frontend:**
    ```powershell
-   scp -i "D:\MM-Gdrive\WinSCP Portable\k\safesecrets-key.pem" -r frontend/dist/* ec2-user@99.79.9.109:/tmp/frontend-new/
-   ssh -i "D:\MM-Gdrive\WinSCP Portable\k\safesecrets-key.pem" ec2-user@99.79.9.109 "sudo cp -r /tmp/frontend-new/* /var/www/safesecrets/"
+   scp -i "path/to/your-key.pem" -r frontend/dist/* ec2-user@your_ec2_ip:/tmp/frontend-new/
+   ssh -i "path/to/your-key.pem" ec2-user@your_ec2_ip "sudo cp -r /tmp/frontend-new/* /var/www/safesecrets/"
    ```
 
 ## Cost Estimate
