@@ -1,3 +1,7 @@
+# SafeSecrets - Proxy Repository
+
+> **Note:** This is a proxy repository created for submission purposes. The main development repository with full history is at: https://github.com/mindmodelai/voicehackathon-safesecrets
+
 ![SafeSecrets](frontend/public/logos/social.jpg)
 
 # SafeSecrets
