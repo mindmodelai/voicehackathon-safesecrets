@@ -345,8 +345,13 @@ export class SafeSecretsWSServer {
 
       // Start STT stream with callbacks that forward events to the client
       let speakingNotified = false;
+      let lastPartialText = ''; // Track last partial to avoid sending duplicates
 
       const onPartial = (text: string) => {
+        // Skip if this is the same as the last partial (Smallest.ai sends cumulative partials)
+        if (text === lastPartialText) return;
+        lastPartialText = text;
+
         if (!speakingNotified) {
           sendMessage(ws, { type: 'event', event: 'user_speaking_start' });
           speakingNotified = true;
@@ -366,6 +371,7 @@ export class SafeSecretsWSServer {
 
       const onFinal = (text: string) => {
         speakingNotified = false;
+        lastPartialText = ''; // Reset for next utterance
         sendMessage(ws, { type: 'event', event: 'final_transcript', data: { text } });
         this.processTranscript(session, text);
       };

@@ -185,7 +185,8 @@ Bedrock tags the first phoneme of each spoken response, and the frontend plays t
 - Full Canada: All services → ca-central-1
 - Canada + US Voice: Bedrock/Transcribe → ca-central-1, Polly → us-east-1
 - US Bedrock + Voice: All AWS services → us-east-1
-- Full US: All AWS → us-east-1, TTS → Smallest.ai (external)
+- Full US: Bedrock/Transcribe → us-east-1, TTS → Smallest.ai (external)
+- AWS-Free: LLM → OpenAI (GPT-4o-mini), STT/TTS → Smallest.ai (external)
 
 **Adapter Instantiation**: Region-aware constructors accept region parameter, defaulting to ca-central-1
 
@@ -201,12 +202,14 @@ SafeSecrets offers four data residency configurations, allowing users to choose 
 | 🇨🇦 **Canada + US Voice** | ca-central-1 | ca-central-1 | Polly | us-east-1 | Generative |
 | 🇺🇸 **US Bedrock + Voice** | us-east-1 | us-east-1 | Polly | us-east-1 | Generative |
 | 🇺🇸 **Full US + Smallest.ai** | us-east-1 | us-east-1 | Smallest.ai | N/A | Lightning v3.1 |
+| 🌐 **AWS-Free** | OpenAI (GPT-4o-mini) | Smallest.ai | Smallest.ai | N/A | Lightning v3.1 |
 
 **Trade-offs**:
 - **Full Canada**: Complete data residency in Canada with high-quality Neural voice
 - **Canada + US Voice**: Canadian data processing with best-in-class Generative voice from US
 - **US Bedrock + Voice**: All AWS services in US for lowest latency
 - **Full US + Smallest.ai**: US processing with third-party expressive TTS
+- **AWS-Free**: No AWS credentials required, uses OpenAI LLM and Smallest.ai for STT/TTS
 
 ## Infrastructure
 

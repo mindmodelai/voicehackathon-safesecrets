@@ -267,6 +267,11 @@ export function App() {
     setConversationStage('collect');
     setConversationActive(false);
     setIsConnecting(false);
+    // Clear the note and conversation log
+    setNoteText('');
+    setTranscriptLog([]);
+    setAssistantResponse('');
+    setLlmOutput(null);
     playNotepadReverse();
   }, [playNotepadReverse]);
 

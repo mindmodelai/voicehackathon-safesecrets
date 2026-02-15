@@ -58,15 +58,18 @@ Mastra is the central orchestration layer. Each WebSocket session gets its own `
 │  │  ┌─────────────────────────▼───────────────────────────────┐  │  │
 │  │  │  Adapter Layer (swapped per sovereignty mode)            │  │  │
 │  │  │                                                         │  │  │
-│  │  │  STT Adapters:          LLM Adapter:    TTS Adapters:   │  │  │
-│  │  │  ┌─────────────────┐   ┌────────────┐  ┌────────────┐  │  │  │
-│  │  │  │ TranscribeAdapter│   │  Bedrock    │  │PollyAdapter│  │  │  │
-│  │  │  │ (ca/us region)  │   │  (Claude 3  │  │(neural/gen)│  │  │  │
-│  │  │  ├─────────────────┤   │   Haiku)    │  ├────────────┤  │  │  │
-│  │  │  │ SmallestSTT     │   │  ca/us      │  │ SmallestAI │  │  │  │
-│  │  │  │ (Pulse API)     │   │  region     │  │ (Lightning │  │  │  │
-│  │  │  │                 │   │             │  │  v3.1)     │  │  │  │
-│  │  │  └─────────────────┘   └────────────┘  └────────────┘  │  │  │
+│  │  │  STT Adapters:          LLM Adapters:    TTS Adapters: │  │  │
+│  │  │  ┌─────────────────┐   ┌────────────┐  ┌────────────┐ │  │  │
+│  │  │  │ TranscribeAdapter│   │  Bedrock    │  │PollyAdapter│ │  │  │
+│  │  │  │ (ca/us region)  │   │  (Claude 3  │  │(neural/gen)│ │  │  │
+│  │  │  ├─────────────────┤   │   Haiku)    │  ├────────────┤ │  │  │
+│  │  │  │ SmallestSTT     │   │  ca/us      │  │ SmallestAI │ │  │  │
+│  │  │  │ (Pulse/Lightning│   │  region     │  │ (Lightning │ │  │  │
+│  │  │  │  API)           │   ├────────────┤  │  v3.1)     │ │  │  │
+│  │  │  │                 │   │  OpenAI     │  │            │ │  │  │
+│  │  │  │                 │   │ (GPT-4o-mini│  │            │ │  │  │
+│  │  │  │                 │   │  AWS-free)  │  │            │ │  │  │
+│  │  │  └─────────────────┘   └────────────┘  └────────────┘ │  │  │
 │  │  └─────────────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
@@ -74,14 +77,15 @@ Mastra is the central orchestration layer. Each WebSocket session gets its own `
 
 ### Adapter Selection Per Mode
 
-| Mode | STT Adapter | LLM (Bedrock) | TTS Adapter |
-|------|-------------|---------------|-------------|
-| 🇨🇦 Full Canada | TranscribeAdapter → ca-central-1 | Claude 3 Haiku → ca-central-1 | PollyAdapter → Neural, ca-central-1 |
-| 🇨🇦 Canada + US Voice | TranscribeAdapter → ca-central-1 | Claude 3 Haiku → ca-central-1 | PollyAdapter → Generative, us-east-1 |
-| 🇺🇸 US Bedrock + Voice | TranscribeAdapter → us-east-1 | Claude 3 Haiku → us-east-1 | PollyAdapter → Generative, us-east-1 |
-| 🇺🇸 Full US + Smallest.ai | SmallestSTTAdapter → Pulse API | Claude 3 Haiku → us-east-1 | SmallestAdapter → Lightning v3.1 |
+| Mode | STT Adapter | LLM | TTS Adapter |
+|------|-------------|-----|-------------|
+| 🇨🇦 Full Canada | TranscribeAdapter → ca-central-1 | Bedrock (Claude 3 Haiku) → ca-central-1 | PollyAdapter → Neural, ca-central-1 |
+| 🇨🇦 Canada + US Voice | TranscribeAdapter → ca-central-1 | Bedrock (Claude 3 Haiku) → ca-central-1 | PollyAdapter → Generative, us-east-1 |
+| 🇺🇸 US Bedrock + Voice | TranscribeAdapter → us-east-1 | Bedrock (Claude 3 Haiku) → us-east-1 | PollyAdapter → Generative, us-east-1 |
+| 🇺🇸 Full US + Smallest.ai | SmallestSTTAdapter → Pulse API | Bedrock (Claude 3 Haiku) → us-east-1 | SmallestAdapter → Lightning v3.1 |
+| 🌐 AWS-Free | SmallestSTTAdapter → Lightning API | OpenAI (GPT-4o-mini) | SmallestAdapter → Lightning v3.1 |
 
-When the user switches modes, `handleSetMode()` destroys the current adapters and instantiates new ones with the correct region/provider configuration. The Mastra workflow engine is also recreated with the new Bedrock region. Any active conversation is ended first.
+When the user switches modes, `handleSetMode()` destroys the current adapters and instantiates new ones with the correct region/provider configuration. The Mastra workflow engine is also recreated with the new LLM provider (Bedrock or OpenAI). Any active conversation is ended first.
 
 ## Tech Stack
 
@@ -104,16 +108,20 @@ A production instance is available at **https://safesecrets.ca** for testing and
 ### Prerequisites
 
 - **Node.js 18+** (tested with Node 20 and 24)
-- **For AWS-based modes** (Full Canada, Canada + US Voice, US Bedrock + Voice):
+- **For AWS-based modes** (Full Canada, Canada + US Voice, US Bedrock + Voice, Full US + Smallest.ai):
   - AWS Account with:
     - Bedrock model access enabled in `ca-central-1` (and optionally `us-east-1` for US modes)
     - Transcribe and Polly available in `ca-central-1` and `us-east-1`
   - AWS Credentials configured (via environment variables or `~/.aws/credentials`)
-- **For Smallest.ai mode** (Full US + Smallest.ai):
+- **For Smallest.ai modes** (Full US + Smallest.ai):
   - Smallest.ai API Key from https://smallest.ai
-  - AWS credentials still required for Bedrock (LLM) and Transcribe (STT)
+  - AWS credentials required for Bedrock (LLM) and Transcribe (STT)
+- **For AWS-Free mode**:
+  - OpenAI API Key from https://platform.openai.com
+  - Smallest.ai API Key from https://smallest.ai
+  - No AWS credentials required
 
-**Note:** All modes currently require AWS credentials for LLM inference (Bedrock) and speech-to-text (Transcribe). Only the TTS (text-to-speech) provider varies by mode.
+**Note:** The AWS-Free mode requires no AWS credentials (uses OpenAI for LLM and Smallest.ai for STT/TTS). All other modes require AWS credentials for Bedrock (LLM), Transcribe (STT), and optionally Polly (TTS).
 
 ### Required IAM Permissions
 
