@@ -34,11 +34,13 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0;
+  overflow-x: hidden;
 }
 
 #root {
   width: 100%;
   max-width: 1200px;
+  overflow-x: hidden;
 }
 
 /* Main App Container */
@@ -115,31 +117,125 @@ body {
   }
 }
 
-/* Responsive Design */
+/* ── Responsive Design ── */
+
+/* Tablet: 768–1024px */
+@media (max-width: 1024px) {
+  .app {
+    padding: 8px 16px 20px !important;
+    gap: 12px !important;
+    max-width: 100% !important;
+  }
+
+  .app__top-row {
+    gap: 14px !important;
+  }
+
+  .app__notepad-col {
+    flex: 0 0 30% !important;
+  }
+
+  .app__sub-row {
+    gap: 10px !important;
+  }
+}
+
+/* Mobile: ≤768px — stack everything vertically */
 @media (max-width: 768px) {
   .app {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 10px !important;
+    padding: 6px 10px 16px !important;
+    min-height: auto !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  .app__top-row {
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+    min-width: 0 !important;
+  }
+
+  .app__notepad-col {
+    flex: 0 0 auto !important;
+    flex-basis: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0;
+  }
+
+  .app__right-panel {
+    width: 100% !important;
+  }
+
+  .app__video-col {
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .app__sub-row {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .app__llm-panel,
+  .app__convo-panel {
+    min-height: auto !important;
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  .app__llm-panel {
+    order: 2;
+  }
+
+  .app__convo-panel {
+    order: 1;
+  }
+
+  .app__button-row {
+    margin-top: 4px;
+  }
+
+  .app__start-button,
+  .app__end-button {
+    font-size: 0.9rem !important;
+    padding: 10px 20px !important;
+  }
+
+  .app__footer {
+    display: block;
   }
 
   .app__left-panel,
   .app__right-panel {
     flex: 1;
-    min-height: 400px;
+    min-height: auto;
   }
+}
 
-  .app__start-button {
-    position: static;
-    transform: none;
-    margin-top: 1.5rem;
+/* Small mobile: ≤480px */
+@media (max-width: 480px) {
+  .app {
+    padding: 4px 6px 12px !important;
+    gap: 8px !important;
   }
+}
 
-  .app__start-button:hover {
-    transform: scale(1.05);
-  }
+/* Footer — Waterloo logo, mobile only */
+.app__footer {
+  display: none;
+  text-align: center;
+  padding: 12px 0 4px;
+}
 
-  .app__start-button:active {
-    transform: scale(0.98);
+/* Utility: hide line breaks on mobile */
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
   }
 }
 
