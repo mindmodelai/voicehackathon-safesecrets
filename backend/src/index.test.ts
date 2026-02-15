@@ -74,7 +74,7 @@ describe('Backend entry point (HTTP + WS server)', () => {
     // Test health endpoint
     const response = await fetch(`http://localhost:${port}/health`);
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = await response.json() as { status: string; sessions: number };
     expect(body.status).toBe('ok');
     expect(body.sessions).toBe(0);
   });
@@ -136,7 +136,7 @@ describe('Backend entry point (HTTP + WS server)', () => {
 
     // Health should now report 1 session
     const response = await fetch(`http://localhost:${port}/health`);
-    const body = await response.json();
+    const body = await response.json() as { status: string; sessions: number };
     expect(body.sessions).toBe(1);
   });
 });

@@ -25,6 +25,7 @@ function createMockAgent(output?: Partial<StructuredOutput>) {
     spokenResponse: 'Here is your note.',
     noteDraft: 'A love note for you.',
     tags: ['#sweet'],
+    phoneme: 'AHAA',
   };
   const merged = { ...defaultOutput, ...output };
   return {
