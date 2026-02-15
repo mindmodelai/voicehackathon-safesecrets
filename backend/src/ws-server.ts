@@ -13,6 +13,7 @@ import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
 import { SmallestAdapter } from './smallest-adapter.js';
 import { SmallestSTTAdapter } from './smallest-stt-adapter.js';
 import { OpenAIAdapter } from './openai-adapter.js';
+import { getTranscribeClient, getPollyClient } from './aws-client-cache.js';
 
 // ── Constants ──
 
@@ -149,8 +150,18 @@ export class SafeSecretsWSServer {
   private handleConnection(ws: WebSocket, _req: IncomingMessage): void {
     const sessionId = randomUUID();
 
-    const transcribeAdapter = this.defaultTranscribeAdapter ?? new TranscribeAdapter();
-    const pollyAdapter = this.defaultPollyAdapter ?? new PollyAdapter();
+    // Use cached AWS clients to enable connection reuse
+    const defaultRegion = 'ca-central-1';
+    const transcribeAdapter =
+      this.defaultTranscribeAdapter ??
+      new TranscribeAdapter(getTranscribeClient(defaultRegion), defaultRegion);
+    const pollyAdapter =
+      this.defaultPollyAdapter ??
+      new PollyAdapter({
+        region: defaultRegion,
+        client: getPollyClient(defaultRegion),
+      });
+
     const voiceProvider = this.defaultVoiceProvider ?? new SafeSecretsVoiceProvider(transcribeAdapter, pollyAdapter);
 
     // Create the workflow engine with event callbacks that forward to the client
@@ -559,6 +570,7 @@ export class SafeSecretsWSServer {
       session.pollyAdapter = new PollyAdapter({
         region: config.pollyRegion,
         engine: config.pollyEngine,
+        client: getPollyClient(config.pollyRegion),
       });
     }
 
@@ -575,7 +587,10 @@ export class SafeSecretsWSServer {
       }
       session.smallestSTTAdapter = new SmallestSTTAdapter(apiKey);
     } else if (config.transcribeRegion) {
-      session.transcribeAdapter = new TranscribeAdapter(config.transcribeRegion);
+      session.transcribeAdapter = new TranscribeAdapter(
+        getTranscribeClient(config.transcribeRegion),
+        config.transcribeRegion,
+      );
     }
 
     // Configure LLM provider
