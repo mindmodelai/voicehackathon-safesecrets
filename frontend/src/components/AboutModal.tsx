@@ -25,21 +25,16 @@ export function AboutModal({ onClose }: AboutModalProps) {
 
           <div className={styles.cardRow}>
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>🎨 Visuals</h3>
+              <h3 className={styles.cardTitle}>🎨 Rendered Visuals</h3>
               <p>Image Generation: Google Gemini 3.0</p>
               <p>Video Generation: Google Veo 3.1</p>
-            </div>
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>📐 Diagrams</h3>
-              <p>Multi-region AWS architecture with sovereignty mode selection</p>
-              <p>EC2 (t3.large) in ca-central-1</p>
             </div>
           </div>
         </section>
 
-        {/* Orchestration */}
+        {/* Deep Integration with Mastra */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Orchestration</h2>
+          <h2 className={styles.sectionTitle}>Deep Integration with Mastra</h2>
 
           <div className={styles.card}>
             <h3 className={styles.cardTitle}>🎙️ Custom Voice Provider</h3>
@@ -166,40 +161,113 @@ export function AboutModal({ onClose }: AboutModalProps) {
           </div>
         </section>
 
-        {/* Sovereignty Modes */}
+        {/* Infrastructure Diagrams */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Sovereignty Modes</h2>
-          <p className={styles.sectionIntro}>Four data residency configurations — choose where your data is processed:</p>
+          <h2 className={styles.sectionTitle}>Infrastructure Architecture</h2>
+          
+          <div className={styles.card}>
+            <h3 className={styles.cardTitle}>🏗️ High-Level System Architecture</h3>
+            <p>The system is divided into three primary layers: the Client Layer (Frontend), the Orchestration Layer (Backend), and the Infrastructure Layer (AI Services). Communication occurs over a WebSocket connection handling both binary audio streams and JSON control messages.</p>
+            
+            <div className={styles.architectureDiagram}>
+              <div className={styles.layer}>
+                <div className={styles.layerTitle}>Client Layer (Browser / React)</div>
+                <div className={styles.layerComponents}>
+                  <div className={styles.component}>Audio Manager<br/><small>(Mic Input / Speaker Output)</small></div>
+                  <div className={styles.component}>Video Avatar<br/><small>(Phoneme Sync / Animation)</small></div>
+                  <div className={styles.component}>UI Components<br/><small>(Notepad / Mode Selector)</small></div>
+                </div>
+              </div>
+              
+              <div className={styles.connector}>↓ WebSocket (WSS) ↓</div>
+              
+              <div className={styles.layer}>
+                <div className={styles.layerTitle}>Orchestration Layer (Node.js Server)</div>
+                <div className={styles.layerComponents}>
+                  <div className={styles.component}>Session Manager</div>
+                  <div className={styles.component}>Mastra Workflow Engine</div>
+                  <div className={styles.component}>Mode Handler</div>
+                </div>
+                <div className={styles.adapterLayer}>
+                  <div className={styles.layerTitle}>Abstract Adapter Layer</div>
+                  <div className={styles.layerComponents}>
+                    <div className={styles.component}>STT Interface</div>
+                    <div className={styles.component}>LLM Interface</div>
+                    <div className={styles.component}>TTS Interface</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className={styles.connector}>↓</div>
+              
+              <div className={styles.layer}>
+                <div className={styles.layerTitle}>Infrastructure Layer (Regional / Provider)</div>
+                <div className={styles.layerComponents}>
+                  <div className={styles.component}>Amazon Transcribe<br/><small>ca-central-1 / us-east-1</small></div>
+                  <div className={styles.component}>Amazon Bedrock<br/><small>Claude 3 Haiku</small></div>
+                  <div className={styles.component}>Amazon Polly<br/><small>Neural / Generative</small></div>
+                  <div className={styles.component}>Smallest.ai / OpenAI<br/><small>Lightning / GPT-4o</small></div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          <div className={styles.sovereigntyTable}>
-            <div className={styles.sovereigntyRow}>
-              <span className={styles.sovereigntyFlag}>🇨🇦</span>
-              <div>
-                <strong>Full Canada</strong>
-                <p className={styles.muted}>All services → ca-central-1 · Polly Neural</p>
-              </div>
+          <div className={styles.card}>
+            <h3 className={styles.cardTitle}>🌍 Sovereignty Mode Configuration</h3>
+            <table className={styles.sovereigntyModeTable}>
+              <thead>
+                <tr>
+                  <th>Mode</th>
+                  <th>Region Strategy</th>
+                  <th>STT</th>
+                  <th>LLM</th>
+                  <th>TTS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>🇨🇦 All Canadian</strong></td>
+                  <td>Strict Data Residency (CA Only)</td>
+                  <td>AWS Transcribe (ca-central-1)</td>
+                  <td>Bedrock: Claude 3 (ca-central-1)</td>
+                  <td>Polly Neural (ca-central-1)</td>
+                </tr>
+                <tr>
+                  <td><strong>🇨🇦 All American</strong></td>
+                  <td>Hybrid (Logic in CA, Voice in US)</td>
+                  <td>AWS Transcribe (ca-central-1)</td>
+                  <td>Bedrock: Claude 3 (ca-central-1)</td>
+                  <td>Polly Generative (us-east-1)</td>
+                </tr>
+                <tr>
+                  <td><strong>🇺🇸 All USA</strong></td>
+                  <td>Full US Infrastructure</td>
+                  <td>AWS Transcribe (us-east-1)</td>
+                  <td>Bedrock: Claude 3 (us-east-1)</td>
+                  <td>Polly Generative (us-east-1)</td>
+                </tr>
+                <tr>
+                  <td><strong>🚀 AWS-Free (Smallest.ai)</strong></td>
+                  <td>Provider Agnostic</td>
+                  <td>Smallest.ai Lightning (API)</td>
+                  <td>OpenAI GPT-4o-mini (Global)</td>
+                  <td>Smallest.ai Lightning (API)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className={styles.card}>
+            <h3 className={styles.cardTitle}>🔄 Conversation State Machine</h3>
+            <p>The Mastra Workflow Engine maintains the conversation state, ensuring the LLM gathers all necessary information before drafting the note. The system moves linearly but allows for refinement cycles.</p>
+            <div className={styles.stateMachine}>
+              <div className={styles.state}>COLLECT<br/><small>Gathering Info</small></div>
+              <div className={styles.stateConnector}>→</div>
+              <div className={styles.state}>COMPOSE<br/><small>Drafting Note</small></div>
+              <div className={styles.stateConnector}>→</div>
+              <div className={styles.state}>REFINE<br/><small>Editing Cycle</small></div>
             </div>
-            <div className={styles.sovereigntyRow}>
-              <span className={styles.sovereigntyFlag}>🇨🇦</span>
-              <div>
-                <strong>Canada + US Voice</strong>
-                <p className={styles.muted}>Bedrock/Transcribe → ca-central-1 · Polly Generative → us-east-1</p>
-              </div>
-            </div>
-            <div className={styles.sovereigntyRow}>
-              <span className={styles.sovereigntyFlag}>🇺🇸</span>
-              <div>
-                <strong>US Bedrock + Voice</strong>
-                <p className={styles.muted}>All AWS → us-east-1 · Polly Generative</p>
-              </div>
-            </div>
-            <div className={styles.sovereigntyRow}>
-              <span className={styles.sovereigntyFlag}>🇺🇸</span>
-              <div>
-                <strong>Full US + Smallest.ai</strong>
-                <p className={styles.muted}>All AWS → us-east-1 · Smallest.ai Lightning v3.1</p>
-              </div>
-            </div>
+            <p className={styles.muted} style={{textAlign: 'center', marginTop: '10px'}}>Refinement loop allows user to say "Make it funnier" or "Translate to French"</p>
           </div>
         </section>
 
