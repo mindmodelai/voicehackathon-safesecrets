@@ -26,34 +26,7 @@ export function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [llmOutput, setLlmOutput] = useState<{ phoneme?: string; style?: string; noteDraft?: string; tags?: string[]; stage?: string; spokenResponse?: string } | null>(null);
 
-  // Tuner for note trapezoid
-  // Tuner for open (active conversation) state
-  const [noteTuner, setNoteTuner] = useState({
-    perspective: 310,
-    originY: 0,
-    rotateY: 6.5,
-    height: 115,
-    marginTop: -18,
-    marginLeft: 55,
-    fontSize: 1,
-    lineHeight: 1,
-    padTop: 28,
-    padRight: 52,
-    padBottom: 0,
-    padLeft: 36,
-    marginBottom: 3,
-  });
-  // Tuner for closed (idle) state
-  const [closedTuner, setClosedTuner] = useState({
-    perspective: 400,
-    originY: 20,
-    rotateY: 6,
-    height: 115,
-    marginTop: -16,
-    marginLeft: 33,
-  });
-  const [showTuner, setShowTuner] = useState(false);
-  const [tunerText, setTunerText] = useState('');
+  const [noteText, setNoteText] = useState('');
 
   const stateMachineRef = useRef(createAvatarStateMachine());
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
@@ -179,9 +152,10 @@ export function App() {
         // Style no longer drives video selection — phoneme + conversation-looping only
       },
       onNoteDraftUpdate: (draft) => {
-        setTunerText(draft);
+        setNoteText(draft);
       },
       onTTSStart: () => {
+        console.log('[App] onTTSStart — switching to speaking state');
         setStatusText('🔊 Speaking...');
         // Clear thinking flag — agent is now speaking
         sm.transition({ type: 'THINKING_END' });
@@ -189,6 +163,7 @@ export function App() {
         setAvatarState(state);
       },
       onTTSEnd: () => {
+        console.log('[App] onTTSEnd — waiting for audio playback to finish');
         // Don't drop speaking state immediately — audio chunks are still
         // playing in the Web Audio scheduler. Poll until playback actually
         // finishes so the conversation video stays up while audio is audible.
@@ -219,10 +194,13 @@ export function App() {
         setStatusText('🎙️ Hearing you...');
       },
       onFinalTranscript: (text) => {
+        console.log('[App] onFinalTranscript:', text);
         setPartialTranscript('');
         setTranscriptLog((prev) => {
           const entry = `You: ${text}`;
-          return prev[prev.length - 1] === entry ? prev : [...prev, entry];
+          const isDupe = prev[prev.length - 1] === entry;
+          console.log('[App] transcriptLog push (user):', entry, isDupe ? '→ SKIPPED (dupe)' : '→ added');
+          return isDupe ? prev : [...prev, entry];
         });
         sm.transition({ type: 'USER_SPEAKING_END' });
         const state = sm.transition({ type: 'THINKING_START' });
@@ -234,16 +212,19 @@ export function App() {
         }
       },
       onAssistantResponse: (text, stage, extra) => {
+        console.log('[App] onAssistantResponse:', text, 'stage:', stage);
         setAssistantResponse(text);
         setConversationStage(stage);
         setTranscriptLog((prev) => {
           const entry = `[ai] ${text}`;
-          return prev[prev.length - 1] === entry ? prev : [...prev, entry];
+          const isDupe = prev[prev.length - 1] === entry;
+          console.log('[App] transcriptLog push (ai):', entry, isDupe ? '→ SKIPPED (dupe)' : '→ added');
+          return isDupe ? prev : [...prev, entry];
         });
         setLlmOutput({ phoneme: extra?.phoneme, style: extra?.style, noteDraft: extra?.noteDraft, tags: extra?.tags, stage, spokenResponse: text });
         // Push note draft to the notepad
         if (extra?.noteDraft) {
-          setTunerText(extra.noteDraft);
+          setNoteText(extra.noteDraft);
         }
       },
       onModeChanged: (mode) => {
@@ -293,7 +274,7 @@ export function App() {
 
   return (
     <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 24px 24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
-      <Header onAboutClick={() => setShowAbout(true)} onTunerToggle={() => setShowTuner(s => !s)} showTuner={showTuner} noteTuner={noteTuner} onNoteTunerChange={setNoteTuner} closedTuner={closedTuner} onClosedTunerChange={setClosedTuner} tunerText={tunerText} onTunerTextChange={setTunerText} />
+      <Header onAboutClick={() => setShowAbout(true)} />
 
       {/* ── TOP ROW: Notepad (left) + Video screen (right) ── */}
       <div className="app__top-row" style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
@@ -352,9 +333,7 @@ export function App() {
                 sovereigntyMode={sovereigntyMode}
                 onModeChange={handleModeChange}
                 isActive={conversationActive}
-                noteTuner={noteTuner}
-                closedTuner={closedTuner}
-                tunerText={tunerText}
+                noteText={noteText}
               />
             </div>
           </div>

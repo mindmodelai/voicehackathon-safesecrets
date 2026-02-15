@@ -140,7 +140,7 @@
 
 @media (max-width: 480px) {
   .logo {
-    width: 170px;
+    width: 100%;
   }
 
   .nav {
