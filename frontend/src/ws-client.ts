@@ -150,9 +150,11 @@ export class WSClientImpl implements WSClient {
         this.handlers.onSessionReady?.();
         break;
       case 'partial_transcript':
+        console.log('[WSClient] partial_transcript:', message.data.text);
         this.handlers.onPartialTranscript?.(message.data.text);
         break;
       case 'final_transcript':
+        console.log('[WSClient] final_transcript:', message.data.text);
         this.handlers.onFinalTranscript?.(message.data.text);
         break;
       case 'ui.style':
@@ -162,12 +164,15 @@ export class WSClientImpl implements WSClient {
         this.handlers.onNoteDraftUpdate?.(message.data.noteDraft, message.data.tags);
         break;
       case 'tts.start':
+        console.log('[WSClient] tts.start');
         this.handlers.onTTSStart?.();
         break;
       case 'tts.end':
+        console.log('[WSClient] tts.end');
         this.handlers.onTTSEnd?.();
         break;
       case 'assistant_response':
+        console.log('[WSClient] assistant_response:', message.data.text, 'stage:', message.data.stage);
         this.handlers.onAssistantResponse?.(message.data.text, message.data.stage, {
           phoneme: message.data.phoneme,
           style: message.data.style,

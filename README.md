@@ -7,10 +7,10 @@ A real-time conversational voice application that helps users compose personaliz
 You speak to the avatar. It listens, thinks, and talks back — guiding you through writing a love note in three stages:
 
 1. **Collect** — The assistant asks who the note is for, the situation, desired tone, and desired outcome
-2. **Compose** — Once it has all four pieces, it writes the note and reads it back
+2. **Compose** — Once it has all four pieces, it writes the note and places it on the notepad
 3. **Refine** — You can ask for changes (shorter, bolder, more romantic, translate to French)
 
-The frontend shows a 3D heart avatar that animates based on conversation state, and a live notepad panel that updates as the note is composed.
+The frontend shows a video avatar with phoneme-driven lip-sync animation, and a live notepad panel that updates as the note is composed.
 
 ## Sovereignty Modes
 
@@ -24,6 +24,64 @@ A mode selector at the top of the UI lets users choose where their data is proce
 | 🇺🇸 Full US + Smallest.ai | us-east-1 | Smallest.ai Lightning v3.1 | Third-party TTS, expressive voice |
 
 Switching modes ends any active conversation and reconfigures all adapters (Transcribe, Bedrock, Polly/Smallest.ai) for the selected regions.
+
+## Architecture — Mastra Orchestration
+
+Mastra is the central orchestration layer. Each WebSocket session gets its own `MastraWorkflowEngine` instance that manages the conversation state machine (collect → compose → refine) and coordinates all AI service adapters. When the user switches sovereignty modes, the entire adapter pipeline is torn down and rebuilt for the new regions.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Browser (React + WebSocket Client)                                 │
+│  ┌──────────┐  ┌──────────────┐  ┌───────────────┐                 │
+│  │ AudioMgr │  │ VideoFrame   │  │ ArtifactPanel │                 │
+│  │ (mic+spk)│  │ (phoneme/    │  │ (notepad +    │                 │
+│  │          │  │  conv-loop)  │  │  sovereignty) │                 │
+│  └────┬─────┘  └──────────────┘  └───────────────┘                 │
+│       │  PCM audio ↑↓  JSON events ↑↓                               │
+└───────┼─────────────────────────────────────────────────────────────┘
+        │ WebSocket (binary audio + JSON control)
+┌───────┼─────────────────────────────────────────────────────────────┐
+│  Node.js Backend (ws-server.ts)                                     │
+│       │                                                             │
+│  ┌────▼──────────────────────────────────────────────────────────┐  │
+│  │  Session Manager (per-connection)                              │  │
+│  │  ┌─────────────────────────────────────────────────────────┐  │  │
+│  │  │  Mastra Workflow Engine (orchestrator)                   │  │  │
+│  │  │  ┌───────────┐  ┌───────────┐  ┌───────────┐           │  │  │
+│  │  │  │  COLLECT   │→│  COMPOSE   │→│  REFINE    │           │  │  │
+│  │  │  │ (ask Qs)   │  │ (write    │  │ (update   │           │  │  │
+│  │  │  │            │  │  note)    │  │  note)    │           │  │  │
+│  │  │  └───────────┘  └───────────┘  └───────────┘           │  │  │
+│  │  │       ↕ prompt-builders.ts + system-instructions.ts     │  │  │
+│  │  └─────────────────────────┬───────────────────────────────┘  │  │
+│  │                            │                                  │  │
+│  │  ┌─────────────────────────▼───────────────────────────────┐  │  │
+│  │  │  Adapter Layer (swapped per sovereignty mode)            │  │  │
+│  │  │                                                         │  │  │
+│  │  │  STT Adapters:          LLM Adapter:    TTS Adapters:   │  │  │
+│  │  │  ┌─────────────────┐   ┌────────────┐  ┌────────────┐  │  │  │
+│  │  │  │ TranscribeAdapter│   │  Bedrock    │  │PollyAdapter│  │  │  │
+│  │  │  │ (ca/us region)  │   │  (Claude 3  │  │(neural/gen)│  │  │  │
+│  │  │  ├─────────────────┤   │   Haiku)    │  ├────────────┤  │  │  │
+│  │  │  │ SmallestSTT     │   │  ca/us      │  │ SmallestAI │  │  │  │
+│  │  │  │ (Pulse API)     │   │  region     │  │ (Lightning │  │  │  │
+│  │  │  │                 │   │             │  │  v3.1)     │  │  │  │
+│  │  │  └─────────────────┘   └────────────┘  └────────────┘  │  │  │
+│  │  └─────────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Adapter Selection Per Mode
+
+| Mode | STT Adapter | LLM (Bedrock) | TTS Adapter |
+|------|-------------|---------------|-------------|
+| 🇨🇦 Full Canada | TranscribeAdapter → ca-central-1 | Claude 3 Haiku → ca-central-1 | PollyAdapter → Neural, ca-central-1 |
+| 🇨🇦 Canada + US Voice | TranscribeAdapter → ca-central-1 | Claude 3 Haiku → ca-central-1 | PollyAdapter → Generative, us-east-1 |
+| 🇺🇸 US Bedrock + Voice | TranscribeAdapter → us-east-1 | Claude 3 Haiku → us-east-1 | PollyAdapter → Generative, us-east-1 |
+| 🇺🇸 Full US + Smallest.ai | SmallestSTTAdapter → Pulse API | Claude 3 Haiku → us-east-1 | SmallestAdapter → Lightning v3.1 |
+
+When the user switches modes, `handleSetMode()` destroys the current adapters and instantiates new ones with the correct region/provider configuration. The Mastra workflow engine is also recreated with the new Bedrock region. Any active conversation is ended first.
 
 ## Tech Stack
 
@@ -232,19 +290,22 @@ safesecrets/
 │   ├── system-instructions.ts   # AI personality prompt (editable)
 │   ├── prompt-builders.ts       # Per-stage LLM prompts (editable)
 │   ├── workflow-constants.ts    # Region and config constants
-│   ├── polly-adapter.ts         # Polly TTS adapter (neural + generative)
+│   ├── polly-adapter.ts         # Amazon Polly TTS adapter (neural + generative)
 │   ├── smallest-adapter.ts      # Smallest.ai TTS adapter (Lightning v3.1)
-│   ├── transcribe-adapter.ts    # Transcribe STT adapter (region-aware)
+│   ├── smallest-stt-adapter.ts  # Smallest.ai STT adapter (Pulse)
+│   ├── transcribe-adapter.ts    # Amazon Transcribe STT adapter (region-aware)
 │   ├── bedrock-adapter.ts       # Bedrock LLM adapter
 │   └── custom-voice-provider.ts # Mastra voice provider wrapper
 ├── frontend/src/
 │   ├── App.tsx                  # Main React app with sovereignty selector
 │   ├── ws-client.ts             # Browser WebSocket client
-│   ├── audio-manager.ts         # Mic capture + audio playback
+│   ├── audio-manager.ts         # Mic capture + Web Audio playback
 │   ├── avatar-state-machine.ts  # Avatar animation state machine
 │   └── components/
-│       ├── HeartAvatar.tsx       # 3D heart avatar component
-│       └── ArtifactPanel.tsx     # Live notepad panel
+│       ├── VideoFrame.tsx        # Main video screen (phoneme + conversation-looping)
+│       ├── ArtifactPanel.tsx     # Live notepad panel with sovereignty mode selector
+│       ├── Header.tsx            # App header with navigation
+│       └── AboutModal.tsx        # About dialog
 ├── shared/
 │   ├── types.ts                 # Shared types, sovereignty mode configs
 │   └── schema.ts                # Structured output validation

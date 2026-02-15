@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useMemo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import type { SovereigntyMode } from '../../../shared/types.js';
 import { SOVEREIGNTY_MODES } from '../../../shared/types.js';
 import { SmallestLogo } from './SmallestLogo';
@@ -8,30 +8,7 @@ export interface ArtifactPanelProps {
   sovereigntyMode: SovereigntyMode;
   onModeChange: (mode: SovereigntyMode) => void;
   isActive: boolean;
-  noteTuner?: {
-    perspective: number;
-    originY: number;
-    rotateY: number;
-    height: number;
-    marginTop: number;
-    marginLeft: number;
-    fontSize: number;
-    lineHeight: number;
-    padTop: number;
-    padRight: number;
-    padBottom: number;
-    padLeft: number;
-    marginBottom: number;
-  };
-  closedTuner?: {
-    perspective: number;
-    originY: number;
-    rotateY: number;
-    height: number;
-    marginTop: number;
-    marginLeft: number;
-  };
-  tunerText?: string;
+  noteText?: string;
 }
 
 const MODE_KEYS = Object.keys(SOVEREIGNTY_MODES) as SovereigntyMode[];
@@ -48,6 +25,32 @@ const MODE_FLAGS: Record<SovereigntyMode, 'ca' | 'us'> = {
   canada_us_voice: 'ca',
   us_bedrock_voice: 'us',
   full_us: 'us',
+};
+
+// Baked-in layout values — desktop
+const DESKTOP_OPEN = {
+  perspective: 310, originY: 0, rotateY: 6.5,
+  height: 115, marginTop: -18, marginLeft: 55,
+  fontSize: 1, lineHeight: 1,
+  padTop: 28, padRight: 52, padBottom: 0, padLeft: 36,
+  marginBottom: 3,
+};
+const DESKTOP_CLOSED = {
+  perspective: 400, originY: 20, rotateY: 6,
+  height: 115, marginTop: -16, marginLeft: 33,
+};
+
+// Baked-in layout values — mobile (≤768px)
+const MOBILE_OPEN = {
+  perspective: 310, originY: 0, rotateY: 6.5,
+  height: 123, marginTop: -9, marginLeft: 55,
+  fontSize: 1, lineHeight: 1.2,
+  padTop: 28, padRight: 54, padBottom: 21, padLeft: 24,
+  marginBottom: 18,
+};
+const MOBILE_CLOSED = {
+  perspective: 310, originY: 20, rotateY: 6,
+  height: 115, marginTop: -24, marginLeft: -9,
 };
 
 function FlagIcon({ country, className }: { country: 'ca' | 'us'; className?: string }) {
@@ -75,11 +78,11 @@ function FlagIcon({ country, className }: { country: 'ca' | 'us'; className?: st
   );
 }
 
-export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onModeChange, isActive, noteTuner, closedTuner, tunerText }: ArtifactPanelProps) {
-  // Only apply tuner styles on desktop (>768px)
+export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onModeChange, isActive, noteText }: ArtifactPanelProps) {
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
-  const tuner = isMobile ? undefined : noteTuner;
-  // Delayed content visibility — waits 2s after isActive changes before showing new content
+  const open = isMobile ? MOBILE_OPEN : DESKTOP_OPEN;
+  const closed = isMobile ? MOBILE_CLOSED : DESKTOP_CLOSED;
+
   const [showContent, setShowContent] = useState(!isActive);
 
   useEffect(() => {
@@ -97,40 +100,44 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
         </div>
       </div>
 
-      <div className={styles.optionsWrapper} style={isActive && tuner ? {
-        perspective: `${tuner.perspective}px`,
-        perspectiveOrigin: `right ${tuner.originY}%`,
+      <div className={styles.optionsWrapper} style={isActive ? {
+        perspective: `${open.perspective}px`,
+        perspectiveOrigin: `right ${open.originY}%`,
       } : {
-        perspective: `${closedTuner?.perspective ?? 400}px`,
-        perspectiveOrigin: `right ${closedTuner?.originY ?? 20}%`,
+        perspective: `${closed.perspective}px`,
+        perspectiveOrigin: `right ${closed.originY}%`,
       }}>
-        <div className={styles.optionsSection} style={isActive && tuner ? {
-          transform: `rotateY(${tuner.rotateY}deg)`,
-          height: `${tuner.height}%`,
-          marginTop: `${tuner.marginTop}px`,
-          marginLeft: `${tuner.marginLeft}px`,
+        <div className={styles.optionsSection} style={isActive ? {
+          transform: `rotateY(${open.rotateY}deg)`,
+          height: `${open.height}%`,
+          marginTop: `${open.marginTop}px`,
+          marginLeft: `${open.marginLeft}px`,
         } : {
-          transform: `rotateY(${closedTuner?.rotateY ?? 6}deg)`,
-          height: `${closedTuner?.height ?? 108}%`,
-          marginTop: `${closedTuner?.marginTop ?? -24}px`,
-          marginLeft: `${closedTuner?.marginLeft ?? 6}px`,
+          transform: `rotateY(${closed.rotateY}deg)`,
+          height: `${closed.height}%`,
+          marginTop: `${closed.marginTop}px`,
+          marginLeft: `${closed.marginLeft}px`,
         }}>
           {showContent && (
             isActive ? (
-              <>
-                <div className={styles.noteContainer} style={tuner ? { bottom: `${tuner.marginBottom}px` } : undefined}>
-                  <p className={styles.notePlaceholder} style={tuner ? { fontSize: `${tuner.fontSize}rem`, lineHeight: tuner.lineHeight, paddingTop: `${tuner.padTop}px`, paddingRight: `${tuner.padRight}px`, paddingBottom: `${tuner.padBottom}px`, paddingLeft: `${tuner.padLeft}px` } : undefined}>{tunerText || 'Your secret note will appear here…'}</p>
-                  <button
-                    type="button"
-                    onClick={() => { navigator.clipboard.writeText(tunerText || ''); }}
-                    className={styles.copyButton}
-                    aria-label="Copy note to clipboard"
-                  >📋</button>
-                </div>
-              </>
+              <div className={styles.noteContainer} style={{ bottom: `${open.marginBottom}px` }}>
+                <p className={styles.notePlaceholder} style={{
+                  fontSize: `${open.fontSize}rem`,
+                  lineHeight: open.lineHeight,
+                  paddingTop: `${open.padTop}px`,
+                  paddingRight: `${open.padRight}px`,
+                  paddingBottom: `${open.padBottom}px`,
+                  paddingLeft: `${open.padLeft}px`,
+                }}>{noteText || 'Your secret note will appear here…'}</p>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(noteText || ''); }}
+                  className={styles.copyButton}
+                  aria-label="Copy note to clipboard"
+                >📋</button>
+              </div>
             ) : (
               <div className={styles.radioGroup} role="radiogroup" aria-label="Sovereignty mode">
-                {/* Vertical connecting line */}
                 <div className={styles.radioLine} />
                 {MODE_KEYS.map((mode) => {
                   const config = SOVEREIGNTY_MODES[mode];
@@ -174,7 +181,6 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
           )}
         </div>
       </div>
-
     </div>
   );
 });
