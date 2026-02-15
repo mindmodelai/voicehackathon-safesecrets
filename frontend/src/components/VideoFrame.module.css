@@ -39,3 +39,25 @@
     inset 0 -10px 20px rgba(60, 0, 0, 0.18),
     inset 0 0 0 1px rgba(139, 0, 0, 0.15);
 }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bubble {
+    border-radius: 14px;
+    max-width: 100%;
+  }
+
+  .bubble::after {
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bubble {
+    border-radius: 10px;
+  }
+
+  .bubble::after {
+    border-radius: 8px;
+  }
+}

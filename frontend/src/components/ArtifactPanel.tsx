@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useMemo } from 'react';
 import type { SovereigntyMode } from '../../../shared/types.js';
 import { SOVEREIGNTY_MODES } from '../../../shared/types.js';
 import { SmallestLogo } from './SmallestLogo';
@@ -8,6 +8,22 @@ export interface ArtifactPanelProps {
   sovereigntyMode: SovereigntyMode;
   onModeChange: (mode: SovereigntyMode) => void;
   isActive: boolean;
+  noteTuner?: {
+    perspective: number;
+    originY: number;
+    rotateY: number;
+    height: number;
+    marginTop: number;
+    marginLeft: number;
+    fontSize: number;
+    lineHeight: number;
+    padTop: number;
+    padRight: number;
+    padBottom: number;
+    padLeft: number;
+    marginBottom: number;
+  };
+  tunerText?: string;
 }
 
 const MODE_KEYS = Object.keys(SOVEREIGNTY_MODES) as SovereigntyMode[];
@@ -51,7 +67,10 @@ function FlagIcon({ country, className }: { country: 'ca' | 'us'; className?: st
   );
 }
 
-export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onModeChange, isActive }: ArtifactPanelProps) {
+export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onModeChange, isActive, noteTuner, tunerText }: ArtifactPanelProps) {
+  // Only apply tuner styles on desktop (>768px)
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+  const tuner = isMobile ? undefined : noteTuner;
   // Delayed content visibility — waits 2s after isActive changes before showing new content
   const [showContent, setShowContent] = useState(!isActive);
 
@@ -64,17 +83,43 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
   return (
     <div className={styles.panel}>
       <div className={styles.promptSection}>
-        <div>
+        <div style={{ width: '100%' }}>
           <p className={styles.promptHeading}>How Safe Is<br />Your Secret?</p>
-          <p className={styles.promptSub}>Canadian Sovereignty.<br />Choose your settings below.</p>
+          <p className={styles.promptSub}>Choose your Canadian Sovereignty <br className="desktop-only" />settings below.</p>
         </div>
       </div>
 
-      <div className={styles.optionsWrapper} style={{ perspective: '400px', perspectiveOrigin: 'right 20%' }}>
-        <div className={styles.optionsSection} style={{ transform: 'rotateY(6deg)', height: '108%', marginTop: '-24px', marginLeft: '6px' }}>
+      <div className={styles.optionsWrapper} style={isActive && tuner ? {
+        perspective: `${tuner.perspective}px`,
+        perspectiveOrigin: `right ${tuner.originY}%`,
+      } : {
+        perspective: '400px',
+        perspectiveOrigin: 'right 20%',
+      }}>
+        <div className={styles.optionsSection} style={isActive && tuner ? {
+          transform: `rotateY(${tuner.rotateY}deg)`,
+          height: `${tuner.height}%`,
+          marginTop: `${tuner.marginTop}px`,
+          marginLeft: `${tuner.marginLeft}px`,
+        } : {
+          transform: 'rotateY(6deg)',
+          height: '108%',
+          marginTop: '-24px',
+          marginLeft: '6px',
+        }}>
           {showContent && (
             isActive ? (
-              <p className={styles.notePlaceholder}>Your secret note will appear here…</p>
+              <>
+                <div className={styles.noteContainer} style={tuner ? { bottom: `${tuner.marginBottom}px` } : undefined}>
+                  <p className={styles.notePlaceholder} style={tuner ? { fontSize: `${tuner.fontSize}rem`, lineHeight: tuner.lineHeight, paddingTop: `${tuner.padTop}px`, paddingRight: `${tuner.padRight}px`, paddingBottom: `${tuner.padBottom}px`, paddingLeft: `${tuner.padLeft}px` } : undefined}>{tunerText || 'Your secret note will appear here…'}</p>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(tunerText || ''); }}
+                    className={styles.copyButton}
+                    aria-label="Copy note to clipboard"
+                  >📋</button>
+                </div>
+              </>
             ) : (
               <div className={styles.radioGroup} role="radiogroup" aria-label="Sovereignty mode">
                 {/* Vertical connecting line */}

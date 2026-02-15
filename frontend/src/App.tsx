@@ -28,6 +28,25 @@ export function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [llmOutput, setLlmOutput] = useState<{ phoneme?: string; style?: string; noteDraft?: string; tags?: string[]; stage?: string; spokenResponse?: string } | null>(null);
 
+  // Tuner for note trapezoid
+  const [noteTuner, setNoteTuner] = useState({
+    perspective: 310,
+    originY: 0,
+    rotateY: 6,
+    height: 108,
+    marginTop: -17,
+    marginLeft: 6,
+    fontSize: 1.1,
+    lineHeight: 1.12,
+    padTop: 28,
+    padRight: 7,
+    padBottom: 0,
+    padLeft: 36,
+    marginBottom: 13,
+  });
+  const [showTuner, setShowTuner] = useState(false);
+  const [tunerText, setTunerText] = useState('');
+
   const stateMachineRef = useRef(createAvatarStateMachine());
   const wsClientRef = useRef<ReturnType<typeof createWSClient> | null>(null);
   const audioManagerRef = useRef(createAudioManager());
@@ -35,6 +54,7 @@ export function App() {
 
   const notepadVideoRef = useRef<HTMLVideoElement>(null);
   const reverseRafRef = useRef<number>(0);
+  const videoColRef = useRef<HTMLDivElement>(null);
 
   // Freeze notepad video at first frame once loaded
   const handleNotepadLoaded = useCallback(() => {
@@ -82,6 +102,13 @@ export function App() {
     setConversationActive(true);
     setIsConnecting(true);
     playNotepadForward();
+
+    // On mobile, scroll to the video area
+    if (window.innerWidth <= 768 && videoColRef.current) {
+      setTimeout(() => {
+        videoColRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
 
     const sm = stateMachineRef.current;
     const audio = audioManagerRef.current;
@@ -211,20 +238,17 @@ export function App() {
     playNotepadReverse();
   }, [playNotepadReverse]);
 
-  const showStartButton = !isConnected || avatarState === 'idle';
-
-  // Button state: connecting → end conversation → start conversation
-  const buttonState = isConnecting ? 'connecting' : (showStartButton ? 'start' : 'end');
+  const buttonState = isConnecting ? 'connecting' : (conversationActive ? 'end' : 'start');
 
   return (
     <div className="app" data-testid="app-layout" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 24px 24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'PT Sans Caption', sans-serif", minHeight: '100vh', background: 'linear-gradient(to top, #f8e8ee, #f6f9f8 40%)' }}>
-      <Header onAboutClick={() => setShowAbout(true)} />
+      <Header onAboutClick={() => setShowAbout(true)} onTunerToggle={() => setShowTuner(s => !s)} showTuner={showTuner} noteTuner={noteTuner} onNoteTunerChange={setNoteTuner} tunerText={tunerText} onTunerTextChange={setTunerText} />
 
       {/* ── TOP ROW: Notepad (left) + Video screen (right) ── */}
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
+      <div className="app__top-row" style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
 
         {/* Left column: Notepad video + buttons underneath */}
-        <div style={{ flex: '0 0 24%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="app__notepad-col" style={{ flex: '0 0 24%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Notepad video container — 9:16 portrait */}
           <div className="app__right-panel" data-testid="right-panel" style={{ aspectRatio: '9 / 16', position: 'relative', borderRadius: '16px', background: 'none', boxShadow: 'none', border: 'none' }}>
             {/* Notepad video background — frozen at first frame, flipped on Y axis */}
@@ -255,12 +279,14 @@ export function App() {
                 sovereigntyMode={sovereigntyMode}
                 onModeChange={handleModeChange}
                 isActive={conversationActive}
+                noteTuner={noteTuner}
+                tunerText={tunerText}
               />
             </div>
           </div>
 
           {/* Button below the notepad — toggles between Start / End */}
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div className="app__button-row" style={{ display: 'flex', justifyContent: 'center' }}>
             {buttonState === 'connecting' ? (
               <button
                 className="app__start-button"
@@ -293,19 +319,18 @@ export function App() {
         </div>
 
         {/* Right column: Wide video screen + two sub-columns underneath */}
-        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <VideoFrame />
+        <div ref={videoColRef} className="app__video-col" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <VideoFrame avatarState={avatarState} phoneme={llmOutput?.phoneme} />
 
           {/* ── BOTTOM ROW under video: Spoken response (left) + Conversation flow (right) ── */}
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+          <div className="app__sub-row" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
             {/* Sub-column 1: LLM Phoneme Signaling */}
-            <div data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '8px', background: '#e8eaf6', padding: '16px 20px', borderRadius: '12px', border: '1px solid #c5cae9', minHeight: '150px' }}>
+            <div className="app__llm-panel" data-testid="center-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '8px', background: '#e8eaf6', padding: '16px 20px', borderRadius: '12px', border: '1px solid #c5cae9', minHeight: '150px' }}>
               <div style={{ fontSize: '0.8rem', color: '#7986cb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 🎬 LLM Phoneme Signaling
               </div>
               <div data-testid="llm-output" style={{
-                flex: '1',
                 fontSize: '0.88rem',
                 lineHeight: '1.6',
                 color: '#1a237e',
@@ -337,7 +362,7 @@ export function App() {
             </div>
 
             {/* Sub-column 2: Conversation flow — avatar, status, transcript */}
-            <div data-testid="left-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '12px', background: '#fce4ec', padding: '16px 20px', borderRadius: '12px', border: '1px solid #f8bbd0', minHeight: '150px' }}>
+            <div className="app__convo-panel" data-testid="left-panel" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '12px', background: '#fce4ec', padding: '16px 20px', borderRadius: '12px', border: '1px solid #f8bbd0', minHeight: '150px' }}>
               <HeartAvatar avatarState={avatarState} speakingStyle={speakingStyle} />
 
               {statusText && (
@@ -380,6 +405,13 @@ export function App() {
       </div>
 
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+
+      {/* Footer — Waterloo logo visible on mobile (hidden from header) */}
+      <footer className="app__footer">
+        <a href="https://waterloo-voice-hackathon.replit.app/" target="_blank" rel="noopener noreferrer">
+          <img src="/logos/ailogo.png" alt="AI Voice Hackathon" style={{ height: '28px', width: 'auto' }} />
+        </a>
+      </footer>
     </div>
   );
 }
