@@ -5,7 +5,7 @@
 echo "🔍 Checking SafeSecrets deployment readiness..."
 echo ""
 
-EC2_HOST="184.73.253.209"
+EC2_HOST="99.79.9.109"
 DOMAIN="safesecrets.ca"
 SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/safesecrets-key.pem}"
 
