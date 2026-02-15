@@ -26,6 +26,7 @@
   text-align: center;
   line-height: 1.3;
   margin: 0 0 6px;
+  width: 100%;
 }
 
 .promptSub {
@@ -34,6 +35,7 @@
   text-align: center;
   line-height: 1.4;
   margin: 0;
+  width: 100%;
 }
 
 /* Bottom 3/6: perspective trapezoid wrapper */
@@ -48,13 +50,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 16px 20px 16px 48px;
   height: 100%;
   transform: rotateY(9deg);
   transform-origin: center center;
   position: relative;
   z-index: 2;
+  overflow-y: auto;
 }
 
 /* Radio group — 4-row grid, last row tighter */
@@ -91,6 +94,7 @@
   position: relative;
   z-index: 1;
   text-align: left;
+  font-family: inherit;
 }
 
 /* Outer disc */
@@ -163,6 +167,7 @@
 .radioLabel {
   font-size: 1.05rem;
   font-weight: 700;
+  font-family: 'PT Sans Caption', sans-serif;
   color: rgba(255, 255, 255, 0.85);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   transition: color 0.2s;
@@ -183,6 +188,7 @@
   padding: 0;
   font-size: 0.72rem;
   font-weight: 600;
+  font-family: 'PT Sans Caption', sans-serif;
   color: rgba(255, 255, 255, 0.55);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   line-height: 1.4;
@@ -226,38 +232,146 @@
   fill: rgba(255, 255, 255, 0.85);
 }
 
+/* Note container — fills the trapezoid, isolates text padding */
+.noteContainer {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* Note placeholder (active state) */
 .notePlaceholder {
   font-family: 'Handlee', cursive;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   color: rgba(60, 30, 10, 0.6);
-  text-align: center;
-  line-height: 1.5;
+  text-align: left;
+  line-height: 1.2;
   margin: 0;
   font-style: italic;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
-  height: 100%;
+}
+
+/* Copy button in note area */
+.copyButton {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  z-index: 3;
+  transition: background 0.2s;
+}
+
+.copyButton:hover {
+  background: rgba(255, 255, 255, 0.9);
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .promptHeading {
-    font-size: 1.7rem;
+    font-size: 2rem;
   }
 
   .promptSub {
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .radioLabel {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
   }
 
   .radioServiceList {
-    font-size: 0.65rem;
+    font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .promptHeading {
+    font-size: 5rem;
+  }
+
+  .promptSub {
+    font-size: 1.3rem;
+  }
+
+  .promptSection {
+    padding: 10px 14px;
+    width: 100%;
+  }
+
+  /* Flatten the trapezoid perspective on mobile — center the content */
+  .optionsWrapper {
+    perspective: none !important;
+    perspective-origin: center center !important;
+    display: flex;
+    justify-content: center;
+  }
+
+  .optionsSection {
+    transform: none !important;
+    height: auto !important;
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+    padding: 10px 8px 10px 32px;
+    align-items: stretch;
+  }
+
+  .radioLabel {
+    font-size: 1.15rem;
+  }
+
+  .radioServiceList {
+    font-size: 0.72rem;
+  }
+
+  .radioDisc {
+    width: 36px;
+    height: 36px;
+  }
+
+  .radioFlag {
+    width: 32px;
+    height: 32px;
+  }
+
+  .radioFlagSvg,
+  .radioFlagSvgUs {
+    height: 32px;
+  }
+
+  .radioLine {
+    left: 18px;
+  }
+
+  .radioItem {
+    gap: 16px;
+  }
+
+  .smallestLogoOnly {
+    height: 1.6em;
+  }
+}
+
+@media (max-width: 480px) {
+  .promptHeading {
+    font-size: 3rem;
+  }
+
+  .promptSub {
+    font-size: 1.1rem;
+  }
+
+  .radioLabel {
+    font-size: 1.25rem;
+  }
+
+  .radioServiceList {
+    font-size: 0.75rem;
   }
 }
 

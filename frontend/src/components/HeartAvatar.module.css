@@ -112,8 +112,7 @@
 /* Responsive */
 @media (max-width: 768px) {
   .avatar {
-    width: 200px;
-    height: 200px;
+    display: none;
   }
 }
 
