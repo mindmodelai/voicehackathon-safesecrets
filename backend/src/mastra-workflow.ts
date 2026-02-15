@@ -51,6 +51,7 @@ const structuredOutputZod = z.object({
   spokenResponse: z.string().min(1),
   noteDraft: z.string(),
   tags: z.array(z.string()),
+  phoneme: z.enum(['MBP', 'TDNL', 'AHAA', 'OUW', 'EE', 'FV']),
   // Context extraction fields (used during collect stage)
   recipient: z.string().nullable().optional(),
   situation: z.string().nullable().optional(),

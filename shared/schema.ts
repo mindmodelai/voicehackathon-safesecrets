@@ -3,17 +3,19 @@ import type { StructuredOutput } from './types.js';
 // JSON Schema for Bedrock prompt enforcement
 export const structuredOutputSchema = {
   type: 'object',
-  required: ['style', 'spokenResponse', 'noteDraft', 'tags'],
+  required: ['style', 'spokenResponse', 'noteDraft', 'tags', 'phoneme'],
   properties: {
     style: { type: 'string', enum: ['soft', 'flirty', 'serious'] },
     spokenResponse: { type: 'string', minLength: 1 },
     noteDraft: { type: 'string', minLength: 1 },
     tags: { type: 'array', items: { type: 'string' } },
+    phoneme: { type: 'string', enum: ['MBP', 'TDNL', 'AHAA', 'OUW', 'EE', 'FV'] },
   },
   additionalProperties: false,
 } as const;
 
 const VALID_STYLES = new Set(['soft', 'flirty', 'serious']);
+const VALID_PHONEMES = new Set(['MBP', 'TDNL', 'AHAA', 'OUW', 'EE', 'FV']);
 
 /**
  * Validates that a value conforms to the StructuredOutput schema.
@@ -31,7 +33,7 @@ export function validateStructuredOutput(
   const obj = value as Record<string, unknown>;
 
   // Check for additional properties
-  const allowedKeys = new Set(['style', 'spokenResponse', 'noteDraft', 'tags']);
+  const allowedKeys = new Set(['style', 'spokenResponse', 'noteDraft', 'tags', 'phoneme']);
   for (const key of Object.keys(obj)) {
     if (!allowedKeys.has(key)) {
       errors.push(`Unexpected property: "${key}"`);
@@ -66,6 +68,13 @@ export function validateStructuredOutput(
     errors.push('Property "tags" must be an array');
   } else if (!obj.tags.every((item: unknown) => typeof item === 'string')) {
     errors.push('All items in "tags" must be strings');
+  }
+
+  // phoneme
+  if (!('phoneme' in obj)) {
+    errors.push('Missing required property: "phoneme"');
+  } else if (typeof obj.phoneme !== 'string' || !VALID_PHONEMES.has(obj.phoneme)) {
+    errors.push('Property "phoneme" must be one of: "MBP", "TDNL", "AHAA", "OUW", "EE", "FV"');
   }
 
   if (errors.length > 0) {
