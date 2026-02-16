@@ -13,10 +13,13 @@ import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
 import { SmallestAdapter } from './smallest-adapter.js';
 import { SmallestSTTAdapter } from './smallest-stt-adapter.js';
 import { OpenAIAdapter } from './openai-adapter.js';
+import { RateLimiter } from './rate-limiter.js';
 
 // ── Constants ──
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_CONNECTIONS = 20; // 20 connections per minute per IP
 
 // ── Session Resources ──
 
@@ -120,6 +123,7 @@ export interface WSServerOptions {
 export class SafeSecretsWSServer {
   private wss: WebSocketServer;
   private sessions: Map<string, SessionResources> = new Map();
+  private rateLimiter: RateLimiter;
 
   // Shared adapters (can be overridden for testing)
   private defaultTranscribeAdapter?: TranscribeAdapter;
@@ -128,6 +132,11 @@ export class SafeSecretsWSServer {
   private defaultVoiceProvider?: SafeSecretsVoiceProvider;
 
   constructor(options: WSServerOptions = {}) {
+    this.rateLimiter = new RateLimiter({
+      windowMs: RATE_LIMIT_WINDOW_MS,
+      max: RATE_LIMIT_MAX_CONNECTIONS,
+    });
+
     this.defaultTranscribeAdapter = options.transcribeAdapter;
     this.defaultPollyAdapter = options.pollyAdapter;
     this.defaultMastraWorkflow = options.mastraWorkflow;
@@ -146,7 +155,18 @@ export class SafeSecretsWSServer {
 
   // ── Connection handling ──
 
-  private handleConnection(ws: WebSocket, _req: IncomingMessage): void {
+  private handleConnection(ws: WebSocket, req: IncomingMessage): void {
+    // 🛡️ Sentinel Security Check: Rate Limiting
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    // Normalize IP (handle ::ffff: prefix for IPv4 mapped addresses)
+    const normalizedIp = ip.replace(/^::ffff:/, '');
+
+    if (!this.rateLimiter.check(normalizedIp)) {
+      console.warn(`[WSServer] Rate limit exceeded for IP: ${normalizedIp}`);
+      ws.close(1008, 'Rate limit exceeded');
+      return;
+    }
+
     const sessionId = randomUUID();
 
     const transcribeAdapter = this.defaultTranscribeAdapter ?? new TranscribeAdapter();
@@ -724,6 +744,8 @@ export class SafeSecretsWSServer {
 
   /** Gracefully shuts down the server and cleans up all sessions. */
   async close(): Promise<void> {
+    this.rateLimiter.dispose();
+
     // Clean up all sessions
     const cleanupPromises = Array.from(this.sessions.values()).map((session) =>
       this.cleanupSession(session),
