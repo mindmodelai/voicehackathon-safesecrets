@@ -84,7 +84,7 @@ function parseClientMessage(data: Buffer | ArrayBuffer | Buffer[], isBinary: boo
     const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
     return {
       type: 'audio',
-      payload: { data: new Uint8Array(buffer).buffer as ArrayBuffer, sampleRate: 16000 },
+      payload: { data: buffer, sampleRate: 16000 },
     };
   }
 
@@ -242,14 +242,23 @@ export class SafeSecretsWSServer {
 
   private handleAudioMessage(
     session: SessionResources,
-    payload: { data: ArrayBuffer; sampleRate: number },
+    payload: { data: ArrayBuffer | Uint8Array; sampleRate: number },
   ): void {
     if (!session.context) {
       // No active conversation — ignore audio
       return;
     }
 
-    const buffer = Buffer.from(payload.data);
+    // Optimization: Avoid copy if payload.data is already a Buffer
+    let buffer: Buffer;
+    if (Buffer.isBuffer(payload.data)) {
+      buffer = payload.data;
+    } else if (payload.data instanceof ArrayBuffer) {
+      buffer = Buffer.from(payload.data);
+    } else {
+      // payload.data is Uint8Array
+      buffer = Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength);
+    }
 
     try {
       if (session.smallestSTTAdapter) {
