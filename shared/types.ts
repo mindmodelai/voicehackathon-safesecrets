@@ -127,7 +127,7 @@ export interface ConversationContext {
 // ── WebSocket messages ──
 
 export type ClientMessage =
-  | { type: 'audio'; payload: { data: ArrayBuffer; sampleRate: number } }
+  | { type: 'audio'; payload: { data: ArrayBuffer | Uint8Array; sampleRate: number } }
   | { type: 'control'; payload: { action: 'start_conversation' } }
   | { type: 'control'; payload: { action: 'end_conversation' } }
   | { type: 'control'; payload: { action: 'refinement'; data: RefinementRequest } }
