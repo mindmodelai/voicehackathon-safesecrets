@@ -11,6 +11,7 @@ const mockDisconnect = vi.fn();
 const mockSendAudio = vi.fn();
 const mockSendControl = vi.fn();
 const mockSendRefinement = vi.fn();
+const mockSendMode = vi.fn();
 const mockIsConnected = vi.fn(() => false);
 
 vi.mock('./ws-client', () => ({
@@ -22,6 +23,7 @@ vi.mock('./ws-client', () => ({
       sendAudio: mockSendAudio,
       sendControl: mockSendControl,
       sendRefinement: mockSendRefinement,
+      sendMode: mockSendMode,
       isConnected: mockIsConnected,
     };
   },
