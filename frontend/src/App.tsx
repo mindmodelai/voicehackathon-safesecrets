@@ -37,6 +37,14 @@ export function App() {
   const notepadBackVideoRef = useRef<HTMLVideoElement>(null);
   const [showNotepadBack, setShowNotepadBack] = useState(false);
   const videoColRef = useRef<HTMLDivElement>(null);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll transcript log when new messages arrive
+  useEffect(() => {
+    if (transcriptEndRef.current) {
+      transcriptEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [transcriptLog]);
 
   // Track whether audio is actually playing out of the speakers
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
@@ -440,7 +448,7 @@ export function App() {
                 <div style={{ fontSize: '0.7rem', color: '#d4849e', marginTop: '2px' }}>Record of conversation</div>
               </div>
               {statusText && (
-                <div data-testid="status-text" style={{ fontSize: '0.9rem', color: '#555', textAlign: 'center' }}>
+                <div data-testid="status-text" aria-live="polite" style={{ fontSize: '0.9rem', color: '#555', textAlign: 'center' }}>
                   {statusText}
                 </div>
               )}
@@ -458,7 +466,7 @@ export function App() {
               )}
 
               {transcriptLog.length > 0 && (
-                <div data-testid="transcript-log" style={{ width: '100%', maxHeight: '200px', overflowY: 'auto', fontSize: '0.8rem', color: '#666', background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
+                <div data-testid="transcript-log" aria-live="polite" style={{ width: '100%', maxHeight: '200px', overflowY: 'auto', fontSize: '0.8rem', color: '#666', background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
                   {transcriptLog.map((line, i) => {
                     const isAi = line.startsWith('[ai] ');
                     const isUser = line.startsWith('You:');
@@ -469,6 +477,7 @@ export function App() {
                       </div>
                     );
                   })}
+                  <div ref={transcriptEndRef} />
                 </div>
               )}
             </div>
