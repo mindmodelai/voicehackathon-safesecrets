@@ -86,12 +86,24 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
   const closed = isMobile ? MOBILE_CLOSED : DESKTOP_CLOSED;
 
   const [showContent, setShowContent] = useState(!isActive);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setShowContent(false);
     const timer = setTimeout(() => setShowContent(true), 2000);
     return () => clearTimeout(timer);
   }, [isActive]);
+
+  const handleCopy = async () => {
+    if (!noteText) return;
+    try {
+      await navigator.clipboard.writeText(noteText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
 
   return (
     <div className={styles.panel}>
@@ -133,10 +145,13 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
                 }}>{noteText || 'Your secret note will appear here…'}</p>
                 <button
                   type="button"
-                  onClick={() => { navigator.clipboard.writeText(noteText || ''); }}
-                  className={styles.copyButton}
-                  aria-label="Copy note to clipboard"
-                >📋</button>
+                  onClick={handleCopy}
+                  className={`${styles.copyButton} ${copied ? styles.copyButtonSuccess : ''}`}
+                  aria-label={copied ? 'Note copied' : 'Copy note to clipboard'}
+                  title={copied ? 'Copied!' : 'Copy note'}
+                >
+                  {copied ? '✅' : '📋'}
+                </button>
               </div>
             ) : (
               <div className={styles.radioGroup} role="radiogroup" aria-label="Sovereignty mode">
