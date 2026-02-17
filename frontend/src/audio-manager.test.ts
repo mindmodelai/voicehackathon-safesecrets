@@ -276,4 +276,48 @@ describe('AudioManager', () => {
       expect(manager.isPlaying()).toBe(false);
     });
   });
+
+  describe('addPlaybackListener', () => {
+    it('notifies listeners when playback starts', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).toHaveBeenCalledWith(true);
+    });
+
+    it('notifies listeners when playback ends naturally', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).toHaveBeenCalledWith(true);
+
+      mockCtx._sources[0].onended?.();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('notifies listeners when playback is stopped manually', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      manager.playAudioChunk(new ArrayBuffer(16));
+      manager.stopPlayback();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('does not notify repeatedly if already playing', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      manager.playAudioChunk(new ArrayBuffer(16));
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(true);
+    });
+
+    it('allows unsubscribing', () => {
+      const listener = vi.fn();
+      const unsubscribe = manager.addPlaybackListener(listener);
+      unsubscribe();
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
 });
