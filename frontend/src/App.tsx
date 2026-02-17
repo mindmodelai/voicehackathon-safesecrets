@@ -41,15 +41,15 @@ export function App() {
   // Track whether audio is actually playing out of the speakers
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
-  // Poll the audio manager so the video stays in sync with actual playback
+  // Subscribe to audio manager playback state changes to keep video in sync
   useEffect(() => {
-    let rafId: number;
-    const poll = () => {
-      setIsAudioPlaying(audioManagerRef.current.isPlaying());
-      rafId = requestAnimationFrame(poll);
-    };
-    rafId = requestAnimationFrame(poll);
-    return () => cancelAnimationFrame(rafId);
+    // Initial state
+    setIsAudioPlaying(audioManagerRef.current.isPlaying());
+
+    // Subscribe
+    return audioManagerRef.current.addPlaybackListener((playing) => {
+      setIsAudioPlaying(playing);
+    });
   }, []);
 
   // Freeze notepad video at first frame once loaded
@@ -165,20 +165,26 @@ export function App() {
       onTTSEnd: () => {
         console.log('[App] onTTSEnd — waiting for audio playback to finish');
         // Don't drop speaking state immediately — audio chunks are still
-        // playing in the Web Audio scheduler. Poll until playback actually
-        // finishes so the conversation video stays up while audio is audible.
-        const waitForPlaybackEnd = () => {
-          if (audio.isPlaying()) {
-            requestAnimationFrame(waitForPlaybackEnd);
-            return;
-          }
+        // playing in the Web Audio scheduler. Subscribe to playback state
+        // changes to know when audio actually finishes.
+        const handlePlaybackEnd = () => {
           // Audio is truly silent now — safe to leave speaking state
           sm.transition({ type: 'THINKING_END' });
           const state = sm.transition({ type: 'TTS_END' });
           setAvatarState(state);
           setStatusText('🎙️ Listening — speak now');
         };
-        waitForPlaybackEnd();
+
+        if (!audio.isPlaying()) {
+          handlePlaybackEnd();
+        } else {
+          const unsubscribe = audio.addPlaybackListener((playing) => {
+            if (!playing) {
+              unsubscribe();
+              handlePlaybackEnd();
+            }
+          });
+        }
       },
       onAudioChunk: (chunk) => {
         audio.playAudioChunk(chunk);
