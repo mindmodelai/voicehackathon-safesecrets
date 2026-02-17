@@ -358,4 +358,52 @@ describe('SafeSecretsWSServer', () => {
       // Don't assign to `server` so afterEach doesn't try to double-close
     });
   });
+
+  describe('rate limiting', () => {
+    it('should reject connections exceeding the rate limit', async () => {
+      port = getTestPort();
+      server = new SafeSecretsWSServer({ port });
+      await new Promise((r) => setTimeout(r, 100));
+
+      const connections: WebSocket[] = [];
+      const LIMIT = 20;
+
+      // Establish LIMIT connections
+      for (let i = 0; i < LIMIT; i++) {
+        const ws = new WebSocket(`ws://localhost:${port}/ws`);
+        connections.push(ws);
+        await waitForOpen(ws);
+      }
+
+      expect(server.getSessionCount()).toBe(LIMIT);
+
+      // Try one more connection
+      const rejectedWs = new WebSocket(`ws://localhost:${port}/ws`);
+
+      // Wait for it to close with code 1008
+      await new Promise<void>((resolve, reject) => {
+        rejectedWs.on('close', (code, reason) => {
+          try {
+            expect(code).toBe(1008);
+            expect(reason.toString()).toBe('Rate limit exceeded');
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
+        rejectedWs.on('error', (err) => {
+             // In some environments, a closed connection might emit an error
+             // like "Unexpected server response: 1008".
+             // We can check that too if needed, but 'close' usually fires.
+        });
+        setTimeout(() => reject(new Error('Connection did not close')), 2000);
+      });
+
+      // Clean up
+      for (const ws of connections) {
+        ws.close();
+      }
+      rejectedWs.close();
+    }, 10000); // Increased timeout for this test
+  });
 });
