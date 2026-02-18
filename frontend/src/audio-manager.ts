@@ -13,6 +13,7 @@ export interface AudioManager {
   playAudioChunk(chunk: ArrayBuffer): void;
   stopPlayback(): void;
   isPlaying(): boolean;
+  addPlaybackListener(listener: (isPlaying: boolean) => void): () => void;
 }
 
 const TARGET_SAMPLE_RATE = 16000;
@@ -62,6 +63,7 @@ export class AudioManagerImpl implements AudioManager {
   /** Currently playing source nodes — tracked so stopPlayback can kill them */
   private activeSources: AudioBufferSourceNode[] = [];
   private playing = false;
+  private listeners: ((isPlaying: boolean) => void)[] = [];
 
   /** Debug counters */
   private chunkCount = 0;
@@ -131,6 +133,21 @@ export class AudioManagerImpl implements AudioManager {
 
   // ── Playback ─────────────────────────────────────────────
 
+  private notifyListeners(): void {
+    for (const listener of this.listeners) {
+      listener(this.playing);
+    }
+  }
+
+  addPlaybackListener(listener: (isPlaying: boolean) => void): () => void {
+    this.listeners.push(listener);
+    // Notify immediately of current state
+    listener(this.playing);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
   playAudioChunk(chunk: ArrayBuffer): void {
     this.chunkCount++;
     this.totalBytesReceived += chunk.byteLength;
@@ -172,7 +189,10 @@ export class AudioManagerImpl implements AudioManager {
     this.totalSamplesScheduled += pcmData.length;
 
     this.activeSources.push(source);
-    this.playing = true;
+    if (!this.playing) {
+      this.playing = true;
+      this.notifyListeners();
+    }
 
     source.onended = () => {
       const idx = this.activeSources.indexOf(source);
@@ -181,6 +201,7 @@ export class AudioManagerImpl implements AudioManager {
       }
       if (this.activeSources.length === 0) {
         this.playing = false;
+        this.notifyListeners();
       }
     };
   }
@@ -198,7 +219,10 @@ export class AudioManagerImpl implements AudioManager {
     }
     this.activeSources = [];
     this.scheduledTime = 0;
-    this.playing = false;
+    if (this.playing) {
+      this.playing = false;
+      this.notifyListeners();
+    }
     // Reset debug counters for next TTS session
     this.chunkCount = 0;
     this.totalBytesReceived = 0;
