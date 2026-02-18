@@ -276,4 +276,65 @@ describe('AudioManager', () => {
       expect(manager.isPlaying()).toBe(false);
     });
   });
+
+  describe('addPlaybackListener', () => {
+    it('calls listener immediately with current state', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('calls listener when playback starts', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      listener.mockClear();
+
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).toHaveBeenCalledWith(true);
+    });
+
+    it('calls listener when playback ends via stopPlayback', () => {
+      manager.playAudioChunk(new ArrayBuffer(16));
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      listener.mockClear();
+
+      manager.stopPlayback();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('calls listener when playback ends naturally', () => {
+      manager.playAudioChunk(new ArrayBuffer(16));
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      listener.mockClear();
+
+      // Trigger onended on the source
+      mockCtx._sources[0].onended?.();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('does not call listener after unsubscribe', () => {
+      const listener = vi.fn();
+      const unsubscribe = manager.addPlaybackListener(listener);
+      listener.mockClear();
+
+      unsubscribe();
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('handles multiple listeners', () => {
+      const l1 = vi.fn();
+      const l2 = vi.fn();
+      manager.addPlaybackListener(l1);
+      manager.addPlaybackListener(l2);
+      l1.mockClear();
+      l2.mockClear();
+
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(l1).toHaveBeenCalledWith(true);
+      expect(l2).toHaveBeenCalledWith(true);
+    });
+  });
 });

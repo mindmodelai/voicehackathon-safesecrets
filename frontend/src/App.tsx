@@ -41,15 +41,9 @@ export function App() {
   // Track whether audio is actually playing out of the speakers
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
-  // Poll the audio manager so the video stays in sync with actual playback
+  // Listen for audio playback changes to keep video in sync
   useEffect(() => {
-    let rafId: number;
-    const poll = () => {
-      setIsAudioPlaying(audioManagerRef.current.isPlaying());
-      rafId = requestAnimationFrame(poll);
-    };
-    rafId = requestAnimationFrame(poll);
-    return () => cancelAnimationFrame(rafId);
+    return audioManagerRef.current.addPlaybackListener(setIsAudioPlaying);
   }, []);
 
   // Freeze notepad video at first frame once loaded
@@ -165,20 +159,27 @@ export function App() {
       onTTSEnd: () => {
         console.log('[App] onTTSEnd — waiting for audio playback to finish');
         // Don't drop speaking state immediately — audio chunks are still
-        // playing in the Web Audio scheduler. Poll until playback actually
+        // playing in the Web Audio scheduler. Wait until playback actually
         // finishes so the conversation video stays up while audio is audible.
-        const waitForPlaybackEnd = () => {
-          if (audio.isPlaying()) {
-            requestAnimationFrame(waitForPlaybackEnd);
-            return;
-          }
+        const finish = () => {
           // Audio is truly silent now — safe to leave speaking state
           sm.transition({ type: 'THINKING_END' });
           const state = sm.transition({ type: 'TTS_END' });
           setAvatarState(state);
           setStatusText('🎙️ Listening — speak now');
         };
-        waitForPlaybackEnd();
+
+        if (!audio.isPlaying()) {
+          finish();
+          return;
+        }
+
+        const unsubscribe = audio.addPlaybackListener((playing) => {
+          if (!playing) {
+            unsubscribe();
+            finish();
+          }
+        });
       },
       onAudioChunk: (chunk) => {
         audio.playAudioChunk(chunk);
