@@ -13,6 +13,7 @@ import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
 import { SmallestAdapter } from './smallest-adapter.js';
 import { SmallestSTTAdapter } from './smallest-stt-adapter.js';
 import { OpenAIAdapter } from './openai-adapter.js';
+import { RateLimiter } from './rate-limiter.js';
 
 // ── Constants ──
 
@@ -120,6 +121,7 @@ export interface WSServerOptions {
 export class SafeSecretsWSServer {
   private wss: WebSocketServer;
   private sessions: Map<string, SessionResources> = new Map();
+  private rateLimiter: RateLimiter;
 
   // Shared adapters (can be overridden for testing)
   private defaultTranscribeAdapter?: TranscribeAdapter;
@@ -132,6 +134,9 @@ export class SafeSecretsWSServer {
     this.defaultPollyAdapter = options.pollyAdapter;
     this.defaultMastraWorkflow = options.mastraWorkflow;
     this.defaultVoiceProvider = options.voiceProvider;
+
+    // Limit to 20 connections per minute per IP
+    this.rateLimiter = new RateLimiter(20, 60000);
 
     if (options.server) {
       this.wss = new WebSocketServer({ server: options.server, path: '/ws' });
@@ -146,7 +151,16 @@ export class SafeSecretsWSServer {
 
   // ── Connection handling ──
 
-  private handleConnection(ws: WebSocket, _req: IncomingMessage): void {
+  private handleConnection(ws: WebSocket, req: IncomingMessage): void {
+    // Check rate limit
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+
+    if (!this.rateLimiter.check(ip)) {
+      console.warn(`[WSServer] Rate limit exceeded for IP: ${ip}`);
+      ws.close(1008, 'Rate limit exceeded');
+      return;
+    }
+
     const sessionId = randomUUID();
 
     const transcribeAdapter = this.defaultTranscribeAdapter ?? new TranscribeAdapter();
@@ -724,6 +738,8 @@ export class SafeSecretsWSServer {
 
   /** Gracefully shuts down the server and cleans up all sessions. */
   async close(): Promise<void> {
+    this.rateLimiter.dispose();
+
     // Clean up all sessions
     const cleanupPromises = Array.from(this.sessions.values()).map((session) =>
       this.cleanupSession(session),
