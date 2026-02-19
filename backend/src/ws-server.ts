@@ -81,15 +81,27 @@ function sendMessage(ws: WebSocket, message: ServerMessage): void {
  */
 function parseClientMessage(data: Buffer | ArrayBuffer | Buffer[], isBinary: boolean): ClientMessage | null {
   if (isBinary) {
-    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+    let buffer: Buffer;
+    if (Buffer.isBuffer(data)) {
+      buffer = data;
+    } else if (Array.isArray(data)) {
+      buffer = Buffer.concat(data);
+    } else {
+      buffer = Buffer.from(data as ArrayBuffer);
+    }
+
     return {
       type: 'audio',
-      payload: { data: new Uint8Array(buffer).buffer as ArrayBuffer, sampleRate: 16000 },
+      payload: { data: buffer, sampleRate: 16000 },
     };
   }
 
   try {
-    const text = Buffer.isBuffer(data) ? data.toString('utf-8') : new TextDecoder().decode(data as ArrayBuffer);
+    const text = Buffer.isBuffer(data)
+      ? data.toString('utf-8')
+      : Array.isArray(data)
+      ? Buffer.concat(data).toString('utf-8')
+      : new TextDecoder().decode(data as ArrayBuffer);
     const parsed = JSON.parse(text);
     const result = ClientControlMessageSchema.safeParse(parsed);
 
@@ -242,14 +254,18 @@ export class SafeSecretsWSServer {
 
   private handleAudioMessage(
     session: SessionResources,
-    payload: { data: ArrayBuffer; sampleRate: number },
+    payload: { data: ArrayBuffer | Uint8Array; sampleRate: number },
   ): void {
     if (!session.context) {
       // No active conversation — ignore audio
       return;
     }
 
-    const buffer = Buffer.from(payload.data);
+    const buffer = Buffer.isBuffer(payload.data)
+      ? payload.data
+      : payload.data instanceof ArrayBuffer
+      ? Buffer.from(payload.data)
+      : Buffer.from(payload.data);
 
     try {
       if (session.smallestSTTAdapter) {
@@ -489,7 +505,7 @@ export class SafeSecretsWSServer {
 
         sendMessage(session.ws, {
           type: 'audio',
-          payload: { data: chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer },
+          payload: { data: chunk },
         });
       }
     };
