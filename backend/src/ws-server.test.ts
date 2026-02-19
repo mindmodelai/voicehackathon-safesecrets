@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import { SafeSecretsWSServer } from './ws-server.js';
+import { RateLimiter } from './rate-limiter.js';
 import { TranscribeAdapter } from './transcribe-adapter.js';
 import { PollyAdapter } from './polly-adapter.js';
 import { MastraWorkflowEngine } from './mastra-workflow.js';
@@ -356,6 +357,56 @@ describe('SafeSecretsWSServer', () => {
       expect(localServer.getSessionCount()).toBe(0);
 
       // Don't assign to `server` so afterEach doesn't try to double-close
+    });
+  });
+
+  describe('rate limiting', () => {
+    it('should allow connections within limit', async () => {
+      port = getTestPort();
+      // Use a custom rate limiter with limit 2
+      const rateLimiter = new RateLimiter(2, 60000);
+      server = new SafeSecretsWSServer({ port, rateLimiter });
+      await new Promise((r) => setTimeout(r, 100));
+
+      const client1 = new WebSocket(`ws://localhost:${port}/ws`);
+      const client2 = new WebSocket(`ws://localhost:${port}/ws`);
+
+      await Promise.all([waitForOpen(client1), waitForOpen(client2)]);
+
+      expect(client1.readyState).toBe(WebSocket.OPEN);
+      expect(client2.readyState).toBe(WebSocket.OPEN);
+      expect(server.getSessionCount()).toBe(2);
+
+      client1.close();
+      client2.close();
+    });
+
+    it('should reject connections exceeding limit', async () => {
+      port = getTestPort();
+      // Limit 1
+      const rateLimiter = new RateLimiter(1, 60000);
+      server = new SafeSecretsWSServer({ port, rateLimiter });
+      await new Promise((r) => setTimeout(r, 100));
+
+      const client1 = new WebSocket(`ws://localhost:${port}/ws`);
+      await waitForOpen(client1);
+
+      const client2 = new WebSocket(`ws://localhost:${port}/ws`);
+
+      // We expect client2 to close immediately
+      await new Promise<void>((resolve) => {
+        client2.on('close', (code, reason) => {
+          expect(code).toBe(1008);
+          expect(reason.toString()).toBe('Rate limit exceeded');
+          resolve();
+        });
+        // Also listen for error just in case, though close is expected
+        client2.on('error', () => {});
+      });
+
+      expect(server.getSessionCount()).toBe(1);
+
+      client1.close();
     });
   });
 });
