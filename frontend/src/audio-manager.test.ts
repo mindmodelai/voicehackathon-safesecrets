@@ -276,4 +276,41 @@ describe('AudioManager', () => {
       expect(manager.isPlaying()).toBe(false);
     });
   });
+
+  describe('addPlaybackListener', () => {
+    it('notifies listener when playback starts', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).toHaveBeenCalledWith(true);
+    });
+
+    it('notifies listener when playback ends via onended', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      manager.playAudioChunk(new ArrayBuffer(16));
+      listener.mockClear();
+
+      mockCtx._sources[0].onended?.();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('notifies listener when playback is stopped manually', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      manager.playAudioChunk(new ArrayBuffer(16));
+      listener.mockClear();
+
+      manager.stopPlayback();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('allows unsubscribing', () => {
+      const listener = vi.fn();
+      const unsubscribe = manager.addPlaybackListener(listener);
+      unsubscribe();
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
 });

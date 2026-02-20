@@ -13,6 +13,7 @@ export interface AudioManager {
   playAudioChunk(chunk: ArrayBuffer): void;
   stopPlayback(): void;
   isPlaying(): boolean;
+  addPlaybackListener(listener: (isPlaying: boolean) => void): () => void;
 }
 
 const TARGET_SAMPLE_RATE = 16000;
@@ -62,6 +63,7 @@ export class AudioManagerImpl implements AudioManager {
   /** Currently playing source nodes — tracked so stopPlayback can kill them */
   private activeSources: AudioBufferSourceNode[] = [];
   private playing = false;
+  private listeners: Set<(isPlaying: boolean) => void> = new Set();
 
   /** Debug counters */
   private chunkCount = 0;
@@ -172,7 +174,10 @@ export class AudioManagerImpl implements AudioManager {
     this.totalSamplesScheduled += pcmData.length;
 
     this.activeSources.push(source);
-    this.playing = true;
+    if (!this.playing) {
+      this.playing = true;
+      this.notifyListeners();
+    }
 
     source.onended = () => {
       const idx = this.activeSources.indexOf(source);
@@ -181,6 +186,7 @@ export class AudioManagerImpl implements AudioManager {
       }
       if (this.activeSources.length === 0) {
         this.playing = false;
+        this.notifyListeners();
       }
     };
   }
@@ -198,7 +204,11 @@ export class AudioManagerImpl implements AudioManager {
     }
     this.activeSources = [];
     this.scheduledTime = 0;
+    const wasPlaying = this.playing;
     this.playing = false;
+    if (wasPlaying) {
+      this.notifyListeners();
+    }
     // Reset debug counters for next TTS session
     this.chunkCount = 0;
     this.totalBytesReceived = 0;
@@ -207,6 +217,18 @@ export class AudioManagerImpl implements AudioManager {
 
   isPlaying(): boolean {
     return this.playing;
+  }
+
+  addPlaybackListener(listener: (isPlaying: boolean) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notifyListeners() {
+    const isPlaying = this.isPlaying();
+    for (const listener of this.listeners) {
+      listener(isPlaying);
+    }
   }
 }
 
