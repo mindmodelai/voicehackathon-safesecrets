@@ -86,6 +86,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
   const closed = isMobile ? MOBILE_CLOSED : DESKTOP_CLOSED;
 
   const [showContent, setShowContent] = useState(!isActive);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     setShowContent(false);
@@ -93,8 +94,15 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
     return () => clearTimeout(timer);
   }, [isActive]);
 
+  useEffect(() => {
+    if (isCopied) {
+      const timer = setTimeout(() => setIsCopied(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isCopied]);
+
   return (
-    <div className={styles.panel}>
+    <div className={styles.panel} aria-label="Love note artifact panel">
       <div className={styles.promptSection}>
         <div style={{ width: '100%' }}>
           <p className={styles.promptHeading}>How Safe Is<br />Your Secret?</p>
@@ -133,10 +141,14 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
                 }}>{noteText || 'Your secret note will appear here…'}</p>
                 <button
                   type="button"
-                  onClick={() => { navigator.clipboard.writeText(noteText || ''); }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(noteText || '');
+                    setIsCopied(true);
+                  }}
                   className={styles.copyButton}
-                  aria-label="Copy note to clipboard"
-                >📋</button>
+                  aria-label={isCopied ? "Copied!" : "Copy note to clipboard"}
+                  disabled={isCopied}
+                >{isCopied ? '✅' : '📋'}</button>
               </div>
             ) : (
               <div className={styles.radioGroup} role="radiogroup" aria-label="Sovereignty mode">

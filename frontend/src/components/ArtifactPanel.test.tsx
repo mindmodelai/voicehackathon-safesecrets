@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { ArtifactPanel } from './ArtifactPanel';
 import type { SovereigntyMode } from '../../../shared/types';
 
@@ -22,5 +22,41 @@ describe('ArtifactPanel', () => {
   it('renders subheading text', () => {
     render(<ArtifactPanel {...defaultProps} />);
     expect(screen.getByText(/Canadian Sovereignty/i)).toBeInTheDocument();
+  });
+
+  it('copies note to clipboard and shows feedback', () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<ArtifactPanel {...defaultProps} isActive={true} noteText="Test Note" />);
+
+    // Fast-forward for content to appear
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    const button = screen.getByLabelText('Copy note to clipboard');
+    expect(button).toBeInTheDocument();
+
+    // Click copy
+    fireEvent.click(button);
+    expect(writeText).toHaveBeenCalledWith('Test Note');
+
+    // Check feedback
+    expect(button).toHaveTextContent('✅');
+    expect(button).toHaveAttribute('aria-label', 'Copied!');
+    expect(button).toBeDisabled();
+
+    // Fast-forward for feedback to reset
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(button).toHaveTextContent('📋');
+    expect(button).toHaveAttribute('aria-label', 'Copy note to clipboard');
+    expect(button).not.toBeDisabled();
+
+    vi.useRealTimers();
   });
 });
