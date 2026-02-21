@@ -127,7 +127,7 @@ export interface ConversationContext {
 // ── WebSocket messages ──
 
 export type ClientMessage =
-  | { type: 'audio'; payload: { data: ArrayBuffer; sampleRate: number } }
+  | { type: 'audio'; payload: { data: ArrayBuffer | Uint8Array; sampleRate: number } }
   | { type: 'control'; payload: { action: 'start_conversation' } }
   | { type: 'control'; payload: { action: 'end_conversation' } }
   | { type: 'control'; payload: { action: 'refinement'; data: RefinementRequest } }
@@ -142,7 +142,7 @@ export type ServerMessage =
   | { type: 'event'; event: 'ui.noteDraft'; data: { noteDraft: string; tags: string[] } }
   | { type: 'event'; event: 'tts.start' }
   | { type: 'event'; event: 'tts.end' }
-  | { type: 'audio'; payload: { data: ArrayBuffer } }
+  | { type: 'audio'; payload: { data: ArrayBuffer | Uint8Array } }
   | { type: 'event'; event: 'error'; data: { message: string } }
   | { type: 'event'; event: 'assistant_response'; data: { text: string; stage: string; phoneme?: Phoneme; style?: SpeakingStyle; noteDraft?: string; tags?: string[] } }
   | { type: 'event'; event: 'mode_changed'; data: { mode: SovereigntyMode } }
