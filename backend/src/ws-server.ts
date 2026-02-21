@@ -68,7 +68,14 @@ function sendMessage(ws: WebSocket, message: ServerMessage): void {
   if (message.type === 'audio') {
     // Send audio payload as binary frame
     const data = message.payload.data;
-    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+    let buffer: Buffer;
+    if (Buffer.isBuffer(data)) {
+      buffer = data;
+    } else if (data instanceof Uint8Array) {
+      buffer = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+    } else {
+      buffer = Buffer.from(data as ArrayBuffer);
+    }
     ws.send(buffer);
   } else {
     ws.send(JSON.stringify(message));
@@ -84,7 +91,8 @@ function parseClientMessage(data: Buffer | ArrayBuffer | Buffer[], isBinary: boo
     const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
     return {
       type: 'audio',
-      payload: { data: new Uint8Array(buffer).buffer as ArrayBuffer, sampleRate: 16000 },
+      // Use buffer directly (matches Uint8Array) to avoid copying the whole pool if it's a slice.
+      payload: { data: buffer, sampleRate: 16000 },
     };
   }
 
@@ -242,14 +250,19 @@ export class SafeSecretsWSServer {
 
   private handleAudioMessage(
     session: SessionResources,
-    payload: { data: ArrayBuffer; sampleRate: number },
+    payload: { data: ArrayBuffer | Uint8Array; sampleRate: number },
   ): void {
     if (!session.context) {
       // No active conversation — ignore audio
       return;
     }
 
-    const buffer = Buffer.from(payload.data);
+    // Use Buffer directly if possible to avoid copy; otherwise create view/copy as needed.
+    const buffer = Buffer.isBuffer(payload.data)
+      ? payload.data
+      : (payload.data instanceof Uint8Array
+          ? Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)
+          : Buffer.from(payload.data));
 
     try {
       if (session.smallestSTTAdapter) {
@@ -489,7 +502,7 @@ export class SafeSecretsWSServer {
 
         sendMessage(session.ws, {
           type: 'audio',
-          payload: { data: chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer },
+          payload: { data: chunk },
         });
       }
     };
