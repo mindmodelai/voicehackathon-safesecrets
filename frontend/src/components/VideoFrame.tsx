@@ -77,6 +77,20 @@ export function VideoFrame({ avatarState, phoneme, isAudioPlaying }: VideoFrameP
     return () => v.removeEventListener('ended', onEnded);
   }, [isAudioPlaying]);
 
+  // Stop hidden videos to save resources
+  useEffect(() => {
+    if (overlay !== 'thinking') {
+      thinkingRef.current?.pause();
+      if (thinkingRef.current) thinkingRef.current.currentTime = 0;
+    }
+    if (overlay !== 'loop') {
+      loopRef.current?.pause();
+    }
+    if (overlay !== 'phoneme') {
+      phonemeRef.current?.pause();
+    }
+  }, [overlay]);
+
   return (
     <div className={styles.bubble}>
       {/* Base layer: idle video always playing — prevents layout shift */}
