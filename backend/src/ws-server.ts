@@ -13,6 +13,7 @@ import { SafeSecretsVoiceProvider } from './custom-voice-provider.js';
 import { SmallestAdapter } from './smallest-adapter.js';
 import { SmallestSTTAdapter } from './smallest-stt-adapter.js';
 import { OpenAIAdapter } from './openai-adapter.js';
+import { RateLimiter } from './rate-limiter.js';
 
 // ── Constants ──
 
@@ -115,11 +116,16 @@ export interface WSServerOptions {
   pollyAdapter?: PollyAdapter;
   mastraWorkflow?: MastraWorkflowEngine;
   voiceProvider?: SafeSecretsVoiceProvider;
+  /** Rate limit window in milliseconds (default: 60000). */
+  rateLimitWindowMs?: number;
+  /** Max connections per IP per window (default: 20). */
+  rateLimitMax?: number;
 }
 
 export class SafeSecretsWSServer {
   private wss: WebSocketServer;
   private sessions: Map<string, SessionResources> = new Map();
+  private connectionLimiter: RateLimiter;
 
   // Shared adapters (can be overridden for testing)
   private defaultTranscribeAdapter?: TranscribeAdapter;
@@ -133,6 +139,11 @@ export class SafeSecretsWSServer {
     this.defaultMastraWorkflow = options.mastraWorkflow;
     this.defaultVoiceProvider = options.voiceProvider;
 
+    this.connectionLimiter = new RateLimiter(
+      options.rateLimitWindowMs ?? 60000,
+      options.rateLimitMax ?? 20
+    );
+
     if (options.server) {
       this.wss = new WebSocketServer({ server: options.server, path: '/ws' });
     } else {
@@ -140,6 +151,14 @@ export class SafeSecretsWSServer {
     }
 
     this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+      const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+
+      if (!this.connectionLimiter.check(ip)) {
+        console.warn(`[WSServer] Connection blocked for IP ${ip} (Rate Limit Exceeded)`);
+        ws.close(1008, 'Rate limit exceeded');
+        return;
+      }
+
       this.handleConnection(ws, req);
     });
   }
@@ -724,6 +743,8 @@ export class SafeSecretsWSServer {
 
   /** Gracefully shuts down the server and cleans up all sessions. */
   async close(): Promise<void> {
+    this.connectionLimiter.dispose();
+
     // Clean up all sessions
     const cleanupPromises = Array.from(this.sessions.values()).map((session) =>
       this.cleanupSession(session),
