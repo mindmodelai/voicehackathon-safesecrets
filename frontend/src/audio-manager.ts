@@ -13,6 +13,7 @@ export interface AudioManager {
   playAudioChunk(chunk: ArrayBuffer): void;
   stopPlayback(): void;
   isPlaying(): boolean;
+  addPlaybackListener(listener: (isPlaying: boolean) => void): () => void;
 }
 
 const TARGET_SAMPLE_RATE = 16000;
@@ -62,11 +63,18 @@ export class AudioManagerImpl implements AudioManager {
   /** Currently playing source nodes — tracked so stopPlayback can kill them */
   private activeSources: AudioBufferSourceNode[] = [];
   private playing = false;
+  private listeners: Set<(isPlaying: boolean) => void> = new Set();
 
   /** Debug counters */
   private chunkCount = 0;
   private totalBytesReceived = 0;
   private totalSamplesScheduled = 0;
+
+  private setPlaying(playing: boolean) {
+    if (this.playing === playing) return;
+    this.playing = playing;
+    this.listeners.forEach((listener) => listener(playing));
+  }
 
   // ── Capture ──────────────────────────────────────────────
 
@@ -172,7 +180,7 @@ export class AudioManagerImpl implements AudioManager {
     this.totalSamplesScheduled += pcmData.length;
 
     this.activeSources.push(source);
-    this.playing = true;
+    this.setPlaying(true);
 
     source.onended = () => {
       const idx = this.activeSources.indexOf(source);
@@ -180,7 +188,7 @@ export class AudioManagerImpl implements AudioManager {
         this.activeSources.splice(idx, 1);
       }
       if (this.activeSources.length === 0) {
-        this.playing = false;
+        this.setPlaying(false);
       }
     };
   }
@@ -198,7 +206,7 @@ export class AudioManagerImpl implements AudioManager {
     }
     this.activeSources = [];
     this.scheduledTime = 0;
-    this.playing = false;
+    this.setPlaying(false);
     // Reset debug counters for next TTS session
     this.chunkCount = 0;
     this.totalBytesReceived = 0;
@@ -207,6 +215,15 @@ export class AudioManagerImpl implements AudioManager {
 
   isPlaying(): boolean {
     return this.playing;
+  }
+
+  addPlaybackListener(listener: (isPlaying: boolean) => void): () => void {
+    this.listeners.add(listener);
+    // Immediately notify with current state
+    listener(this.playing);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 }
 

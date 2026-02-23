@@ -43,13 +43,9 @@ export function App() {
 
   // Poll the audio manager so the video stays in sync with actual playback
   useEffect(() => {
-    let rafId: number;
-    const poll = () => {
-      setIsAudioPlaying(audioManagerRef.current.isPlaying());
-      rafId = requestAnimationFrame(poll);
-    };
-    rafId = requestAnimationFrame(poll);
-    return () => cancelAnimationFrame(rafId);
+    return audioManagerRef.current.addPlaybackListener((isPlaying) => {
+      setIsAudioPlaying(isPlaying);
+    });
   }, []);
 
   // Freeze notepad video at first frame once loaded
@@ -167,18 +163,23 @@ export function App() {
         // Don't drop speaking state immediately — audio chunks are still
         // playing in the Web Audio scheduler. Poll until playback actually
         // finishes so the conversation video stays up while audio is audible.
-        const waitForPlaybackEnd = () => {
-          if (audio.isPlaying()) {
-            requestAnimationFrame(waitForPlaybackEnd);
-            return;
-          }
-          // Audio is truly silent now — safe to leave speaking state
+        if (!audio.isPlaying()) {
           sm.transition({ type: 'THINKING_END' });
           const state = sm.transition({ type: 'TTS_END' });
           setAvatarState(state);
           setStatusText('🎙️ Listening — speak now');
-        };
-        waitForPlaybackEnd();
+          return;
+        }
+
+        const unsubscribe = audio.addPlaybackListener((isPlaying) => {
+          if (!isPlaying) {
+            unsubscribe();
+            sm.transition({ type: 'THINKING_END' });
+            const state = sm.transition({ type: 'TTS_END' });
+            setAvatarState(state);
+            setStatusText('🎙️ Listening — speak now');
+          }
+        });
       },
       onAudioChunk: (chunk) => {
         audio.playAudioChunk(chunk);
