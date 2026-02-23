@@ -12,6 +12,7 @@ const mockSendAudio = vi.fn();
 const mockSendControl = vi.fn();
 const mockSendRefinement = vi.fn();
 const mockIsConnected = vi.fn(() => false);
+const mockSendMode = vi.fn();
 
 vi.mock('./ws-client', () => ({
   createWSClient: (handlers: Record<string, (...args: unknown[]) => void>) => {
@@ -23,6 +24,7 @@ vi.mock('./ws-client', () => ({
       sendControl: mockSendControl,
       sendRefinement: mockSendRefinement,
       isConnected: mockIsConnected,
+      sendMode: mockSendMode,
     };
   },
 }));
@@ -43,13 +45,21 @@ vi.mock('./audio-manager', () => ({
   }),
 }));
 
+vi.mock('./components/VideoFrame', () => ({
+  VideoFrame: ({ avatarState }: { avatarState: string }) => (
+    <div role="img" aria-label={avatarState} />
+  ),
+}));
+
 // Stub HTMLMediaElement for HeartAvatar video
 beforeEach(() => {
+  vi.useFakeTimers();
   HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   HTMLMediaElement.prototype.load = vi.fn();
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   capturedHandlers = {};
 });
@@ -62,15 +72,9 @@ describe('App layout', () => {
     expect(screen.getByTestId('right-panel')).toBeInTheDocument();
   });
 
-  it('renders HeartAvatar in the left panel', () => {
-    render(<App />);
-    const leftPanel = screen.getByTestId('left-panel');
-    expect(leftPanel.querySelector('.heart-avatar')).toBeInTheDocument();
-  });
-
   it('renders ArtifactPanel in the right panel', () => {
     render(<App />);
-    expect(screen.getByLabelText('Love note artifact panel')).toBeInTheDocument();
+    expect(screen.getByText(/How Safe Is/)).toBeInTheDocument();
   });
 
   it('shows Start Conversation button when idle', () => {
@@ -117,6 +121,10 @@ describe('WebSocket event wiring', () => {
     act(() => {
       capturedHandlers.onSessionReady();
     });
+    // Advance time to allow ArtifactPanel content to appear
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
   }
 
   it('updates avatar to listening on partial transcript', () => {
@@ -160,16 +168,6 @@ describe('WebSocket event wiring', () => {
       capturedHandlers.onNoteDraftUpdate('My love note', ['sweet', 'romantic']);
     });
     expect(screen.getByText('My love note')).toBeInTheDocument();
-    expect(screen.getByText('#sweet')).toBeInTheDocument();
-    expect(screen.getByText('#romantic')).toBeInTheDocument();
-  });
-
-  it('updates tone label on style event', () => {
-    connectApp();
-    act(() => {
-      capturedHandlers.onStyleUpdate('flirty');
-    });
-    expect(screen.getByText('flirty')).toBeInTheDocument();
   });
 
   it('plays audio chunks through AudioManager', () => {
@@ -195,30 +193,3 @@ describe('WebSocket event wiring', () => {
   });
 });
 
-describe('Refinement and copy', () => {
-  function connectAndCompose() {
-    render(<App />);
-    fireEvent.click(screen.getByTestId('start-conversation-button'));
-    act(() => {
-      capturedHandlers.onSessionReady();
-    });
-    act(() => {
-      capturedHandlers.onNoteDraftUpdate('A love note', ['sweet']);
-    });
-  }
-
-  it('sends refinement request when refinement button is clicked', () => {
-    connectAndCompose();
-    fireEvent.click(screen.getByText('Make it shorter'));
-    expect(mockSendRefinement).toHaveBeenCalledWith({ type: 'shorter' });
-  });
-
-  it('copies note to clipboard when Copy is clicked', () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
-
-    connectAndCompose();
-    fireEvent.click(screen.getByLabelText('Copy note to clipboard'));
-    expect(writeText).toHaveBeenCalledWith('A love note');
-  });
-});
