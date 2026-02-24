@@ -276,4 +276,48 @@ describe('AudioManager', () => {
       expect(manager.isPlaying()).toBe(false);
     });
   });
+
+  describe('addPlaybackListener', () => {
+    it('notifies listener immediately with current state', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('notifies listener when playback starts', () => {
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      listener.mockClear();
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).toHaveBeenCalledWith(true);
+    });
+
+    it('notifies listener when playback stops via stopPlayback', () => {
+      manager.playAudioChunk(new ArrayBuffer(16));
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      listener.mockClear();
+      manager.stopPlayback();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('notifies listener when playback finishes naturally', () => {
+      manager.playAudioChunk(new ArrayBuffer(16));
+      const listener = vi.fn();
+      manager.addPlaybackListener(listener);
+      listener.mockClear();
+      // Simulate source ending
+      mockCtx._sources[0].onended?.();
+      expect(listener).toHaveBeenCalledWith(false);
+    });
+
+    it('allows unsubscription', () => {
+      const listener = vi.fn();
+      const unsubscribe = manager.addPlaybackListener(listener);
+      listener.mockClear();
+      unsubscribe();
+      manager.playAudioChunk(new ArrayBuffer(16));
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
 });

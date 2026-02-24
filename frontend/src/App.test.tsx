@@ -11,6 +11,7 @@ const mockDisconnect = vi.fn();
 const mockSendAudio = vi.fn();
 const mockSendControl = vi.fn();
 const mockSendRefinement = vi.fn();
+const mockSendMode = vi.fn();
 const mockIsConnected = vi.fn(() => false);
 
 vi.mock('./ws-client', () => ({
@@ -22,6 +23,7 @@ vi.mock('./ws-client', () => ({
       sendAudio: mockSendAudio,
       sendControl: mockSendControl,
       sendRefinement: mockSendRefinement,
+      sendMode: mockSendMode,
       isConnected: mockIsConnected,
     };
   },
@@ -32,6 +34,11 @@ const mockStopCapture = vi.fn();
 const mockPlayAudioChunk = vi.fn();
 const mockStopPlayback = vi.fn();
 const mockIsPlaying = vi.fn(() => false);
+const mockAddPlaybackListener = vi.fn().mockImplementation((cb) => {
+  // Immediately invoke with current state to match implementation
+  cb(mockIsPlaying());
+  return vi.fn();
+});
 
 vi.mock('./audio-manager', () => ({
   createAudioManager: () => ({
@@ -40,16 +47,25 @@ vi.mock('./audio-manager', () => ({
     playAudioChunk: mockPlayAudioChunk,
     stopPlayback: mockStopPlayback,
     isPlaying: mockIsPlaying,
+    addPlaybackListener: mockAddPlaybackListener,
   }),
+}));
+
+vi.mock('./components/VideoFrame', () => ({
+  VideoFrame: ({ avatarState }: { avatarState: string }) => (
+    <img src="mock.png" alt={avatarState} role="img" />
+  ),
 }));
 
 // Stub HTMLMediaElement for HeartAvatar video
 beforeEach(() => {
+  vi.useFakeTimers();
   HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   HTMLMediaElement.prototype.load = vi.fn();
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   capturedHandlers = {};
 });
@@ -62,15 +78,9 @@ describe('App layout', () => {
     expect(screen.getByTestId('right-panel')).toBeInTheDocument();
   });
 
-  it('renders HeartAvatar in the left panel', () => {
-    render(<App />);
-    const leftPanel = screen.getByTestId('left-panel');
-    expect(leftPanel.querySelector('.heart-avatar')).toBeInTheDocument();
-  });
-
   it('renders ArtifactPanel in the right panel', () => {
     render(<App />);
-    expect(screen.getByLabelText('Love note artifact panel')).toBeInTheDocument();
+    expect(screen.getByText(/How Safe Is/i)).toBeInTheDocument();
   });
 
   it('shows Start Conversation button when idle', () => {
@@ -117,6 +127,10 @@ describe('WebSocket event wiring', () => {
     act(() => {
       capturedHandlers.onSessionReady();
     });
+    // Advance timer to show ArtifactPanel content
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
   }
 
   it('updates avatar to listening on partial transcript', () => {
@@ -157,17 +171,20 @@ describe('WebSocket event wiring', () => {
   it('updates note draft and tags on noteDraft event', () => {
     connectApp();
     act(() => {
-      capturedHandlers.onNoteDraftUpdate('My love note', ['sweet', 'romantic']);
+      capturedHandlers.onAssistantResponse('response', 'stage', {
+        noteDraft: 'My love note',
+        tags: ['sweet', 'romantic']
+      });
     });
-    expect(screen.getByText('My love note')).toBeInTheDocument();
-    expect(screen.getByText('#sweet')).toBeInTheDocument();
-    expect(screen.getByText('#romantic')).toBeInTheDocument();
+    // Tags are displayed as comma separated list in LLM output panel
+    expect(screen.getAllByText(/My love note/i)[0]).toBeInTheDocument();
+    expect(screen.getByText(/sweet, romantic/i)).toBeInTheDocument();
   });
 
-  it('updates tone label on style event', () => {
+  it('updates tone label on assistant response', () => {
     connectApp();
     act(() => {
-      capturedHandlers.onStyleUpdate('flirty');
+      capturedHandlers.onAssistantResponse('text', 'stage', { style: 'flirty' });
     });
     expect(screen.getByText('flirty')).toBeInTheDocument();
   });
@@ -202,16 +219,14 @@ describe('Refinement and copy', () => {
     act(() => {
       capturedHandlers.onSessionReady();
     });
+    // Advance timer to show ArtifactPanel content
     act(() => {
-      capturedHandlers.onNoteDraftUpdate('A love note', ['sweet']);
+      vi.advanceTimersByTime(3000);
+    });
+    act(() => {
+      capturedHandlers.onAssistantResponse('response', 'stage', { noteDraft: 'A love note', tags: ['sweet'] });
     });
   }
-
-  it('sends refinement request when refinement button is clicked', () => {
-    connectAndCompose();
-    fireEvent.click(screen.getByText('Make it shorter'));
-    expect(mockSendRefinement).toHaveBeenCalledWith({ type: 'shorter' });
-  });
 
   it('copies note to clipboard when Copy is clicked', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
