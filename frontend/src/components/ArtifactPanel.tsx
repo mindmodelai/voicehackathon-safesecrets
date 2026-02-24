@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import type { SovereigntyMode } from '../../../shared/types.js';
 import { SOVEREIGNTY_MODES } from '../../../shared/types.js';
 import { SmallestLogo } from './SmallestLogo';
@@ -86,12 +86,19 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
   const closed = isMobile ? MOBILE_CLOSED : DESKTOP_CLOSED;
 
   const [showContent, setShowContent] = useState(!isActive);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     setShowContent(false);
     const timer = setTimeout(() => setShowContent(true), 2000);
     return () => clearTimeout(timer);
   }, [isActive]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(noteText || '');
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  }, [noteText]);
 
   return (
     <div className={styles.panel}>
@@ -133,10 +140,13 @@ export const ArtifactPanel = memo(function ArtifactPanel({ sovereigntyMode, onMo
                 }}>{noteText || 'Your secret note will appear here…'}</p>
                 <button
                   type="button"
-                  onClick={() => { navigator.clipboard.writeText(noteText || ''); }}
+                  onClick={handleCopy}
                   className={styles.copyButton}
-                  aria-label="Copy note to clipboard"
-                >📋</button>
+                  aria-label={isCopied ? 'Copied!' : 'Copy note to clipboard'}
+                  data-testid="copy-button"
+                >
+                  {isCopied ? '✅' : '📋'}
+                </button>
               </div>
             ) : (
               <div className={styles.radioGroup} role="radiogroup" aria-label="Sovereignty mode">
