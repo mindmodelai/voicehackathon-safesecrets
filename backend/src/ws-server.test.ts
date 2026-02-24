@@ -358,4 +358,30 @@ describe('SafeSecretsWSServer', () => {
       // Don't assign to `server` so afterEach doesn't try to double-close
     });
   });
+
+  describe('rate limiting', () => {
+    it('should reject connections exceeding rate limit', async () => {
+      port = getTestPort();
+      // Allow 1 connection per second
+      server = new SafeSecretsWSServer({ port, rateLimitWindowMs: 1000, rateLimitMax: 1 });
+      await new Promise((r) => setTimeout(r, 100));
+
+      // First connection should succeed
+      const client1 = new WebSocket(`ws://localhost:${port}/ws`);
+      await waitForOpen(client1);
+
+      // Second connection should fail
+      const client2 = new WebSocket(`ws://localhost:${port}/ws`);
+
+      // We expect client2 to close immediately with code 1008
+      const closePromise = new Promise<number>((resolve) => {
+        client2.on('close', (code) => resolve(code));
+      });
+
+      const code = await closePromise;
+      expect(code).toBe(1008);
+
+      client1.close();
+    });
+  });
 });
